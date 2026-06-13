@@ -161,20 +161,8 @@ async function createFloatButton() {
   let hasMoved = false;
   const DRAG_THRESHOLD = 10; // 拖动阈值，超过这个距离才算拖动
 
-  // 鼠标按下
-  button.addEventListener('mousedown', (e) => {
-    e.preventDefault();
-    e.stopPropagation(); // 阻止事件冒泡，避免触发页面的选择事件
-    isDragging = true;
-    hasMoved = false;  // 重置移动标记
-    startY = e.clientY;
-    const rect = container.getBoundingClientRect();
-    startTop = rect.top;
-    container.classList.add('dragging');
-  });
-
-  // 鼠标移动
-  document.addEventListener('mousemove', (e) => {
+  // 鼠标移动处理器
+  const handleMouseMove = (e) => {
     if (!isDragging) return;
     
     const deltaY = e.clientY - startY;
@@ -193,14 +181,33 @@ async function createFloatButton() {
       container.style.top = `${boundedTop}px`;
       container.style.transform = 'none';
     }
-  });
+  };
 
-  // 鼠标松开
-  document.addEventListener('mouseup', () => {
+  // 鼠标松开处理器
+  const handleMouseUp = () => {
     if (isDragging) {
       isDragging = false;
       container.classList.remove('dragging');
     }
+    // 拖动结束，解绑 document 上的事件监听，释放性能
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+
+  // 鼠标按下
+  button.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    e.stopPropagation(); // 阻止事件冒泡，避免触发页面的选择事件
+    isDragging = true;
+    hasMoved = false;  // 重置移动标记
+    startY = e.clientY;
+    const rect = container.getBoundingClientRect();
+    startTop = rect.top;
+    container.classList.add('dragging');
+    
+    // 动态绑定事件监听
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   });
 
   // 防止拖动时选中文本

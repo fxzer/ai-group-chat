@@ -1,3 +1,9 @@
+// 控制调试日志输出，生产模式下屏蔽普通的 console.log 以优化性能
+const DEBUG_MODE = false;
+if (!DEBUG_MODE) {
+  console.log = function() {};
+}
+
 importScripts('./config/baseConfig.js');     // 加载基础配置（包含开发环境配置）
 
 // 开发环境：输出当前扩展ID供search_url使用
@@ -591,15 +597,36 @@ async function getHandlerForUrl(url) {
         console.log('使用脚本控制方式打开:', siteConfig.url);
         const tab = await chrome.tabs.create({ url: siteConfig.url, active: true });
         
-        // 等待标签页加载完成
+        // 等待标签页加载完成，增加超时和关闭保护以防止挂起泄露
         await new Promise((resolve) => {
-          const listener = (tabId, info) => {
+          const timeoutId = setTimeout(() => {
+            chrome.tabs.onUpdated.removeListener(updateListener);
+            chrome.tabs.onRemoved.removeListener(removeListener);
+            console.warn(`等待标签页 ${tab.id} 加载超时，继续执行处理器`);
+            resolve();
+          }, 30000); // 30 秒超时
+
+          const updateListener = (tabId, info) => {
             if (tabId === tab.id && info.status === 'complete') {
-              chrome.tabs.onUpdated.removeListener(listener);
+              clearTimeout(timeoutId);
+              chrome.tabs.onUpdated.removeListener(updateListener);
+              chrome.tabs.onRemoved.removeListener(removeListener);
               resolve();
             }
           };
-          chrome.tabs.onUpdated.addListener(listener);
+
+          const removeListener = (tabId) => {
+            if (tabId === tab.id) {
+              clearTimeout(timeoutId);
+              chrome.tabs.onUpdated.removeListener(updateListener);
+              chrome.tabs.onRemoved.removeListener(removeListener);
+              console.warn(`等待中的标签页 ${tab.id} 已被用户关闭，取消等待`);
+              resolve();
+            }
+          };
+
+          chrome.tabs.onUpdated.addListener(updateListener);
+          chrome.tabs.onRemoved.addListener(removeListener);
         });
         
         // 执行对应站点的处理函数
@@ -784,6 +811,18 @@ let sidePanelOpenState = new Map();
 function resetSidePanelState(windowId) {
   console.log('重置侧边栏状态，windowId:', windowId);
   sidePanelOpenState.set(windowId, false);
+}
+
+// 监听窗口关闭以清理状态，防止内存泄露
+try {
+  chrome.windows.onRemoved.addListener((windowId) => {
+    if (sidePanelOpenState.has(windowId)) {
+      sidePanelOpenState.delete(windowId);
+      console.log(`🧹 已清理窗口 ${windowId} 的侧边栏状态`);
+    }
+  });
+} catch (err) {
+  console.error('注册 windows.onRemoved 监听器失败:', err);
 }
 
 

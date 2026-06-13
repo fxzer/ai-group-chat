@@ -1,3 +1,8 @@
+// 控制调试日志输出，生产模式下屏蔽普通的 console.log 以优化性能
+const DEBUG_MODE = false;
+if (!DEBUG_MODE) {
+  console.log = function() {};
+}
 
 console.log('🎯 inject.js 脚本已加载');
 
@@ -69,6 +74,16 @@ async function isAISite() {
 // 等待页面加载完成后检查
 let isAISiteChecked = false;
 let isAISiteResult = false;
+
+// 启动时立即开始异步检测 AI 站点，避免每次收到 message 时都触发微任务开销
+(async () => {
+  try {
+    isAISiteResult = await isAISite();
+    isAISiteChecked = true;
+  } catch (e) {
+    console.error('初始化检测 AI 站点出错:', e);
+  }
+})();
 
 async function checkAISite() {
   if (!isAISiteChecked) {
@@ -1349,15 +1364,18 @@ async function getSiteHandler(domain) {
 
 // 监听来自扩展的消息
 window.addEventListener('message', async function(event) {
-    // 首先检查是否在 AI 站点中运行
-    const isAI = await checkAISite();
-    if (!isAI) {
-        return; // 不在 AI 站点中，跳过所有处理
-    }
-    
-    // 过滤消息：只处理来自 AIShortcuts扩展的消息
+    // 过滤消息：首先快速过滤非对象消息
     if (!event.data || typeof event.data !== 'object') {
         return; // 静默跳过非对象消息
+    }
+    
+    // 如果已经检测完，则同步判断结果，完全避免 await 的微任务开销；否则才使用 await 检测
+    if (!isAISiteChecked) {
+        isAISiteResult = await isAISite();
+        isAISiteChecked = true;
+    }
+    if (!isAISiteResult) {
+        return; // 不在 AI 站点中，跳过所有处理
     }
     
     // 检查是否是 AIShortcuts 扩展的消息
