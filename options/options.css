@@ -11,49 +11,7 @@ body {
   min-height: 100vh;
 }
 
-/* ===== 顶部 Tab 导航 ===== */
-.tab-nav {
-  display: flex;
-  justify-content: center;
-  background: #fff;
-  border-bottom: 1px solid #e0e0e0;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-}
 
-.tab-nav-inner {
-  display: flex;
-  width: 100%;
-  max-width: 800px;
-  padding: 0 20px;
-}
-
-.tab-link {
-  display: flex;
-  align-items: center;
-  padding: 14px 24px;
-  color: #666;
-  text-decoration: none;
-  font-size: 14px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.tab-link:hover {
-  color: #333;
-  background: #f8f9fa;
-}
-
-.tab-link.active {
-  color: #00a240;
-  border-bottom-color: #00a240;
-}
 
 /* 主内容区域 */
 .main-content {
@@ -293,49 +251,3 @@ input:checked + .slider:before {
   color: #008230;
 }
 
-/* 禁用网站管理样式 */
-.disabled-sites-section {
-  max-width: 600px;
-}
-
-.disabled-sites-list {
-  margin-top: 20px;
-}
-
-.disabled-site-item {
-  transition: all 0.2s ease;
-}
-
-.disabled-site-item:hover {
-  background-color: #f8f9fa;
-  border-color: #d0d0d0;
-}
-
-.site-info {
-  flex: 1;
-}
-
-.site-domain {
-  display: block;
-  margin-bottom: 2px;
-}
-
-.site-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.enable-btn:hover {
-  background: #008230 !important;
-}
-
-.empty-state, .error-state {
-  border: 2px dashed #e0e0e0;
-  border-radius: 8px;
-  background: #fafafa;
-}
-
-.error-state {
-  border-color: #ffcdd2;
-  background: #ffebee;
-}

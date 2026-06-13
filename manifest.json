@@ -49,35 +49,7 @@
       "run_at": "document_start",
       "all_frames": true
     },
-    {
-      "matches": ["<all_urls>"],
-      "js": [
-        "config/baseConfig.js",
-        "content-scripts/selection.js"
-      ],
-      "css": ["content-scripts/selection.css"]
-    },
-    {
-      "matches": ["<all_urls>"],
-      "css": ["content-scripts/float-button.css"],
-      "js": [
-        "config/baseConfig.js",
-        "content-scripts/float-button.js"
-      ],
-      "run_at": "document_end"
-    },
-    {
-      "matches": [
-        "https://www.google.com/*",
-        "https://www.baidu.com/*",
-        "https://www.bing.com/*",
-        "https://cn.bing.com/*"
-      ],
-      "js": [
-        "config/baseConfig.js",
-        "content-scripts/search-engines.js"
-      ]
-    },
+
     {
       "matches": ["<all_urls>"],
       "css": ["content-scripts/site-button.css"],

@@ -7,44 +7,12 @@
 </head>
 <body>
   <div class="page-layout">
-    <!-- 顶部 Tab 导航 -->
-    <nav class="tab-nav">
-      <div class="tab-nav-inner">
-        <a href="#quick-entry" class="tab-link active" data-section="quick-entry">
-          <span data-i18n="configButtonTitle">快捷入口设置</span>
-        </a>
-        <a href="#disabled-sites" class="tab-link" data-section="disabled-sites">
-          <span data-i18n="disabledSitesTitle">禁用网站</span>
-        </a>
-        <a href="#prompt-templates" class="tab-link" data-section="prompt-templates">
-          <span data-i18n="promptTemplatesTitle">提示词模板</span>
-        </a>
-      </div>
-    </nav>
 
     <!-- 主内容区域 -->
     <main class="main-content">
       <div class="container">
-        <!-- 快捷入口设置 -->
-        <section id="quick-entry" class="settings-section">
-          <h1 data-i18n="configButtonTitle">快捷入口设置</h1>
-          <div class="site-section">
-            <div id="buttonSiteConfigs" class="site-configs"></div>
-          </div>
-        </section>
 
 
-        <!-- 禁用网站管理 -->
-        <section id="disabled-sites" class="settings-section">
-          <h1 data-i18n="disabledSitesTitle">悬浮球禁用网站</h1>
-          <p data-i18n="disabledSitesDescription" style="color: #666; margin-bottom: 20px;">管理悬浮球被禁用的网站，您可以在这里重新启用悬浮球</p>
-          
-          <div class="disabled-sites-section">
-            <div id="disabledSitesList" class="disabled-sites-list">
-              <!-- 禁用网站列表将在这里动态生成 -->
-            </div>
-          </div>
-        </section>
 
         <!-- 提示词模板管理 -->
         <section id="prompt-templates" class="settings-section">

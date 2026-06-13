@@ -22,9 +22,7 @@ AI Group Chat is a Chrome browser extension that enhances AI website usage effic
   - `baseConfig.js`: Base configuration and default site definitions
   - `rules.json`: Declarative net request rules
 - **content-scripts/**: Injected scripts for various functionalities
-  - `float-button.js`: Floating button overlay on web pages
-  - `selection.js`: Text selection handling and popup display
-  - `search-engines.js`: Search engine integration (Google, Baidu, Bing)
+  - `site-button.js`: Inject buttons on AI websites for comparison
 - **iframe/**: Multi-AI comparison interface
   - `iframe.html/js/css`: Main interface for displaying multiple AI sites
   - `inject.js`: Script injected into AI sites for interaction
@@ -36,8 +34,7 @@ AI Group Chat is a Chrome browser extension that enhances AI website usage effic
 1. **Multi-AI Interface**: Uses iframes to embed multiple AI sites in one view
 2. **Site Handlers**: JavaScript functions that automate query submission on each AI site
 3. **Dynamic Configuration**: Remote config updates for adding new AI sites
-4. **Content Script Integration**: Floating buttons and text selection across all websites
-5. **Search Engine Integration**: Quick AI access buttons on search result pages
+4. **Content Script Integration**: Injects comparison buttons into AI websites
 
 ### AI Site Integration
 
@@ -52,7 +49,6 @@ Sites are configured in `config/siteHandlers.json` with properties:
 
 - `background.js:1-50`: Extension lifecycle and config management
 - `iframe/iframe.js:1-50`: Main multi-AI interface logic
-- `content-scripts/float-button.js:1-30`: Floating button creation
 - `config/siteHandlers.json`: Complete AI site configurations
 - `manifest.json`: Extension permissions and content script declarations
 

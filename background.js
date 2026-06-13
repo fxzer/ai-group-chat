@@ -323,7 +323,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   }
 });
 
-// 处理来自 float-button 和 popup 和 content-scripts 的消息
+// 处理来自 popup 和 content-scripts 的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('收到消息:', message);
   
@@ -767,19 +767,13 @@ async function createContextMenu() {
       // 这样可以避免重复创建的问题
       await chrome.contextMenus.removeAll();
       
-      // 获取配置
-      const { buttonConfig } = await chrome.storage.sync.get('buttonConfig');
-      
-      // 检查是否启用页面右键菜单（选中文本时的菜单）
-      if (buttonConfig && buttonConfig.contextMenu) {
-        // 创建页面上的右键菜单（选中文本时显示）
-        chrome.contextMenus.create({
-          id: "searchWithMultiAI",
-          title: chrome.i18n.getMessage("searchWithMultiAI"),
-          contexts: ["selection"]  // 只在选中文本时显示
-        });
-        console.log('页面右键菜单已创建');
-      }
+      // 创建页面上的右键菜单（选中文本时显示）
+      chrome.contextMenus.create({
+        id: "searchWithMultiAI",
+        title: chrome.i18n.getMessage("searchWithMultiAI"),
+        contexts: ["selection"]  // 只在选中文本时显示
+      });
+      console.log('页面右键菜单已创建');
       
       console.log('扩展图标右键菜单已创建');
     } catch (error) {

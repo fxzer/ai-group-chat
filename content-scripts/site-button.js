@@ -373,7 +373,7 @@
         return;
       }
 
-      // 参考 search-engines.js 的方式，通过 background.js 打开 iframe.html
+      // 发送消息给 background.js 打开 iframe.html 对比页面
       chrome.runtime.sendMessage({
         action: 'createComparisonPage',
         query: query
