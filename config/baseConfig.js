@@ -407,10 +407,28 @@ const RemoteConfigManager = {
 if (typeof window === 'undefined') {
   const language = navigator.language.toLowerCase();
   console.log('当前语言:', language);
-  // 站点配置现在通过 getDefaultSites() 动态获取
+  
+  let _sitesCache = null;
+  
+  // 监听存储改变以清除缓存
+  try {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if ((areaName === 'local' && changes.remoteSiteHandlers) || 
+          (areaName === 'sync' && changes.sites)) {
+        _sitesCache = null;
+        console.log('🔄 检测到站点配置存储变化，已失效 Service Worker 端缓存');
+      }
+    });
+  } catch (err) {
+    console.error('注册 Service Worker 存储监听器失败:', err);
+  }
    
   // 动态获取站点配置
   self.getDefaultSites = async function() {
+    if (_sitesCache) {
+      console.log('⚡ 从 Service Worker 内存缓存中获取站点配置');
+      return _sitesCache;
+    }
     try {
       
       //1 从 remoteSiteHandlers 读取基础配置
@@ -458,6 +476,7 @@ if (typeof window === 'undefined') {
         
         console.log('合并配置成功，站点数量:', mergedSites.length);
         console.log('合并配置成功，站点配置:', mergedSites.map(site => ({ name: site.name, enabled: site.enabled })));
+        _sitesCache = mergedSites;
         return mergedSites;
       }
       
@@ -469,6 +488,7 @@ if (typeof window === 'undefined') {
           const localConfig = await response.json();
           if (localConfig.sites && localConfig.sites.length > 0) {
             console.log('从本地文件加载站点配置成功');
+            _sitesCache = localConfig.sites;
             return localConfig.sites;
           }
         }
@@ -509,8 +529,26 @@ else {
   const language = navigator.language.toLowerCase();
   console.log('当前语言:', language);
   
+  let _sitesCache = null;
+  
+  // 监听存储改变以清除缓存
+  try {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if ((areaName === 'local' && changes.remoteSiteHandlers) || 
+          (areaName === 'sync' && changes.sites)) {
+        _sitesCache = null;
+        console.log('🔄 检测到站点配置存储变化，已失效浏览器窗口端缓存');
+      }
+    });
+  } catch (err) {
+    console.error('注册浏览器窗口端存储监听器失败:', err);
+  }
+  
   // 动态获取站点配置
   window.getDefaultSites = async function() {
+    if (_sitesCache) {
+      return _sitesCache;
+    }
     try {
       
       // 生产环境：从 remoteSiteHandlers 读取基础配置
@@ -554,6 +592,7 @@ else {
         });
         
         console.log('合并配置成功，站点数量:', mergedSites.length);
+        _sitesCache = mergedSites;
         return mergedSites;
       }
       
@@ -564,6 +603,7 @@ else {
           const localConfig = await response.json();
           if (localConfig.sites && localConfig.sites.length > 0) {
             console.log('从本地文件加载站点配置成功');
+            _sitesCache = localConfig.sites;
             return localConfig.sites;
           }
         }

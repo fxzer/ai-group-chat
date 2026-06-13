@@ -705,24 +705,29 @@ function showLocalFileWarning(fileName, fileExtension) {
   `;
   
   // 添加 CSS 动画
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes slideInScale {
-      from { 
-        transform: translate(-50%, -50%) scale(0.8); 
-        opacity: 0; 
+  // 添加 CSS 动画 (使用 ID 校验复用，避免重复注入和频繁重绘)
+  let style = document.getElementById('ai-local-file-warning-style');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'ai-local-file-warning-style';
+    style.textContent = `
+      @keyframes slideInScale {
+        from { 
+          transform: translate(-50%, -50%) scale(0.8); 
+          opacity: 0; 
+        }
+        to { 
+          transform: translate(-50%, -50%) scale(1); 
+          opacity: 1; 
+        }
       }
-      to { 
-        transform: translate(-50%, -50%) scale(1); 
-        opacity: 1; 
+      #dismissWarning:hover {
+        background: rgba(255,255,255,0.3) !important;
+        transform: translateY(-1px);
       }
-    }
-    #dismissWarning:hover {
-      background: rgba(255,255,255,0.3) !important;
-      transform: translateY(-1px);
-    }
-  `;
-  document.head.appendChild(style);
+    `;
+    document.head.appendChild(style);
+  }
   
   document.body.appendChild(warning);
   
@@ -733,7 +738,6 @@ function showLocalFileWarning(fileName, fileExtension) {
     setTimeout(() => {
       if (warning.parentElement) {
         warning.remove();
-        style.remove();
       }
     }, 300);
   });
@@ -1013,15 +1017,19 @@ function showFileUploadProgress(current, total, status, siteName = null, result 
       animation: slideInRight 0.3s ease-out;
     `;
     
-    // 添加CSS动画
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes slideInRight {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-      }
-    `;
-    document.head.appendChild(style);
+    // 添加CSS动画 (使用 ID 校验复用)
+    let style = document.getElementById('ai-file-upload-progress-style');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'ai-file-upload-progress-style';
+      style.textContent = `
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
     
     document.body.appendChild(progressElement);
   }
@@ -1345,32 +1353,7 @@ function createSingleIframe(siteName, url, container, query) {
     document.getElementById('searchInput').focus();
   });
   
-  // 添加消息监听（确保只处理一次）
-  const messageHandler = (event) => {
-    if (event.data.type === 'LINK_CLICK' && event.data.href) {
-      window.open(event.data.href, '_blank');
-    }
-    
-    // 处理历史记录 URL 更新消息
-    if (event.data.type === 'HISTORY_URL_UPDATE' && event.data.source === 'inject-script') {
-      // 确保消息来自当前 iframe
-      if (iframe.contentWindow && event.source === iframe.contentWindow) {
-        const siteName = event.data.siteName;
-        const url = event.data.url;
-        const historyId = event.data.historyId || window._currentHistoryId;
-        
-        if (siteName && url && historyId) {
-          console.log(`📝 收到 ${siteName} 的 URL 更新: ${url}，历史记录 ID: ${historyId}`);
-          updateHistorySiteUrl(siteName, url, historyId);
-        } else {
-          console.warn('历史记录 URL 更新消息缺少必要参数:', { siteName, url, historyId });
-        }
-      }
-    }
-  };
-  
-  window.removeEventListener('message', messageHandler); // 移除可能存在的旧监听器
-  window.addEventListener('message', messageHandler);
+
   
   // 合并和优化 iframe 加载事件处理
   iframe.addEventListener('load', () => {
@@ -1405,13 +1388,7 @@ function createSingleIframe(siteName, url, container, query) {
     }, 100);
   });
 
-  // 在父页面级别阻止 iframe 获取焦点
-  document.addEventListener('focusin', (e) => {
-    if (e.target.tagName === 'IFRAME') {
-      e.preventDefault();
-      document.getElementById('searchInput').focus();
-    }
-  }, true);
+
   // 如果参数为空,只使用 url 的 host 部分
   if (!query) {
     try {
@@ -2436,7 +2413,7 @@ async function loadHistoryIframes(sites) {
 }
 
 // 检查两个历史记录是否相同（基于 query 和 urlFeature）
-async function isHistoryDuplicate(newItem, existingItem) {
+async function isHistoryDuplicate(newItem, existingItem, preloadedSiteConfigs = null) {
   try {
     // 首先检查 query 是否相同
     if (newItem.query.trim() !== existingItem.query.trim()) {
@@ -2444,17 +2421,19 @@ async function isHistoryDuplicate(newItem, existingItem) {
     }
     
     // 获取站点配置
-    let siteConfigs = [];
-    try {
-      if (window.getDefaultSites) {
-        siteConfigs = await window.getDefaultSites();
-      } else if (window.siteDetector) {
-        // 如果使用 siteDetector，需要获取所有站点配置
-        siteConfigs = await window.siteDetector.getSites();
+    let siteConfigs = preloadedSiteConfigs;
+    if (!siteConfigs) {
+      try {
+        if (window.getDefaultSites) {
+          siteConfigs = await window.getDefaultSites();
+        } else if (window.siteDetector) {
+          // 如果使用 siteDetector，需要获取所有站点配置
+          siteConfigs = await window.siteDetector.getSites();
+        }
+      } catch (error) {
+        console.warn('获取站点配置失败，跳过 urlFeature 对比:', error);
+        return false;
       }
-    } catch (error) {
-      console.warn('获取站点配置失败，跳过 urlFeature 对比:', error);
-      return false;
     }
     
     // 检查每个站点是否匹配
@@ -2565,14 +2544,35 @@ async function savePKHistory(query) {
       console.warn('获取站点配置失败:', error);
     }
     
+    // 并行获取所有 iframe 的最新 URL，避免串行等待超时
+    const urlPromises = Array.from(iframes).map(async (iframe) => {
+      const siteName = iframe.getAttribute('data-site');
+      if (!siteName) return { siteName: null, url: '' };
+      try {
+        const url = await getIframeLatestUrl(iframe, siteName);
+        return { siteName, url };
+      } catch (error) {
+        console.warn(`获取 ${siteName} 的最新 URL 失败:`, error);
+        return { siteName, url: '' };
+      }
+    });
+    
+    const urlResults = await Promise.all(urlPromises);
+    const urlMap = {};
+    urlResults.forEach(res => {
+      if (res.siteName) {
+        urlMap[res.siteName] = res.url;
+      }
+    });
+
     // 收集所有站点的名称和 URL（尝试立即获取，如果获取不到则留空，由后续消息通信更新）
     // 如果配置了 urlFeature，只保存包含 urlFeature 的 URL
     const sites = [];
     for (const iframe of iframes) {
       const siteName = iframe.getAttribute('data-site');
       if (siteName) {
-        // 尝试立即获取 iframe 的最新 URL
-        const url = await getIframeLatestUrl(iframe, siteName);
+        // 从 urlMap 中直接读取已获取到的最新 URL
+        const url = urlMap[siteName] || '';
         
         // 获取该站点的配置
         const siteConfig = siteConfigs.find(s => s.name === siteName);
@@ -2650,10 +2650,10 @@ async function savePKHistory(query) {
     // 从存储中获取现有历史记录
     const { pkHistory = [] } = await chrome.storage.local.get('pkHistory');
     
-    // 检查是否存在重复记录（基于 query 和 urlFeature）
+    // 检查是否存在重复记录（基于 query 和 urlFeature 并传入预加载的 siteConfigs 避免在循环中读取存储）
     let existingHistoryId = null;
     for (const existingItem of pkHistory) {
-      const isDuplicate = await isHistoryDuplicate(historyItem, existingItem);
+      const isDuplicate = await isHistoryDuplicate(historyItem, existingItem, siteConfigs);
       if (isDuplicate) {
         existingHistoryId = existingItem.id;
         console.log('发现重复的历史记录，将更新现有记录:', existingItem.id);
@@ -2866,7 +2866,45 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 检查剪贴板权限状态
   checkClipboardPermissionStatus();
   
-  // 注意：粘贴事件监听器已在主 DOMContentLoaded 中统一处理，无需重复添加
+  // 在父页面级别阻止 iframe 获取焦点，保持搜索输入框的焦点 (全局注册一次，避免泄露)
+  document.addEventListener('focusin', (e) => {
+    if (e.target.tagName === 'IFRAME') {
+      e.preventDefault();
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) {
+        searchInput.focus();
+      }
+    }
+  }, true);
+
+  // 全局统一处理来自 iframe 的消息，避免在每次创建 iframe 时重复注册监听器
+  window.addEventListener('message', (event) => {
+    // 1. 处理链接点击事件
+    if (event.data && event.data.type === 'LINK_CLICK' && event.data.href) {
+      window.open(event.data.href, '_blank');
+    }
+    
+    // 2. 处理历史记录 URL 更新消息
+    if (event.data && event.data.type === 'HISTORY_URL_UPDATE' && event.data.source === 'inject-script') {
+      // 通过 event.source 匹配对应的 iframe
+      const iframes = document.querySelectorAll('.ai-iframe');
+      for (const iframe of iframes) {
+        if (iframe.contentWindow && event.source === iframe.contentWindow) {
+          const siteName = event.data.siteName;
+          const url = event.data.url;
+          const historyId = event.data.historyId || window._currentHistoryId;
+          
+          if (siteName && url && historyId) {
+            console.log(`📝 [全局监听] 收到 ${siteName} 的 URL 更新: ${url}，历史记录 ID: ${historyId}`);
+            updateHistorySiteUrl(siteName, url, historyId);
+          } else {
+            console.warn('历史记录 URL 更新消息缺少必要参数:', { siteName, url, historyId });
+          }
+          break;
+        }
+      }
+    }
+  });
 });
 
 
@@ -3045,19 +3083,23 @@ async function showUpdateNotification() {
       </div>
     `;
     
-    // 添加CSS动画
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes slideInRight {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-      }
-      @keyframes pulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-      }
-    `;
-    document.head.appendChild(style);
+    // 添加CSS动画 (使用 ID 校验复用)
+    let style = document.getElementById('ai-update-notification-style');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'ai-update-notification-style';
+      style.textContent = `
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
     
     // 点击通知显示详细更新信息
   notification.addEventListener('click', () => {
@@ -3224,19 +3266,23 @@ async function showDetailedUpdateInfo() {
       </div>
     `;
     
-    // 添加CSS动画
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-      @keyframes slideInUp {
-        from { transform: translateY(30px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-      }
-    `;
-    document.head.appendChild(style);
+    // 添加CSS动画 (使用 ID 校验复用)
+    let style = document.getElementById('ai-detailed-update-info-style');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'ai-detailed-update-info-style';
+      style.textContent = `
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideInUp {
+          from { transform: translateY(30px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
     
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
@@ -3247,7 +3293,6 @@ async function showDetailedUpdateInfo() {
       setTimeout(() => {
         if (overlay.parentElement) {
           overlay.remove();
-          style.remove();
         }
       }, 300);
     };

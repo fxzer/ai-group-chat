@@ -1879,6 +1879,22 @@ function startHistoryUrlDetection(siteName, urlFeature, historyId) {
   let checkCount = 0;
   const maxChecks = 60; // 最多检测 60 次（30秒，每次间隔500ms）
   
+  // 停止检测并清理监听器，防止内存泄漏和无限堆积
+  const stopDetection = () => {
+    if (checkInterval) {
+      clearInterval(checkInterval);
+      checkInterval = null;
+    }
+    // 从全局回调中移除当前站点的监听函数
+    if (window.__aiHistoryUrlChangeCallbacks) {
+      const idx = window.__aiHistoryUrlChangeCallbacks.indexOf(urlChangeHandler);
+      if (idx !== -1) {
+        window.__aiHistoryUrlChangeCallbacks.splice(idx, 1);
+        console.log(`🧹 ${siteName} 的 URL 检测事件监听已成功卸载`);
+      }
+    }
+  };
+
   // 检查 URL 是否匹配
   const checkUrl = () => {
     try {
@@ -1904,10 +1920,7 @@ function startHistoryUrlDetection(siteName, urlFeature, historyId) {
           console.log(`📤 已通知父窗口更新 ${siteName} 的历史记录 URL`);
           
           // 停止检测
-          if (checkInterval) {
-            clearInterval(checkInterval);
-            checkInterval = null;
-          }
+          stopDetection();
           return true;
         }
       }
@@ -1915,53 +1928,58 @@ function startHistoryUrlDetection(siteName, urlFeature, historyId) {
       checkCount++;
       if (checkCount >= maxChecks) {
         console.log(`⏰ ${siteName} URL 检测超时（${maxChecks} 次检查），停止检测`);
-        if (checkInterval) {
-          clearInterval(checkInterval);
-          checkInterval = null;
-        }
+        stopDetection();
         return false;
       }
       
       return false;
     } catch (error) {
       console.error(`❌ ${siteName} URL 检测失败:`, error);
-      if (checkInterval) {
-        clearInterval(checkInterval);
-        checkInterval = null;
-      }
+      stopDetection();
       return false;
     }
   };
   
-  // 立即检查一次（页面可能已经跳转）
-  if (checkUrl()) {
-    return; // 如果立即匹配，则不再设置定时器
-  }
-  
-  // 每 500ms 检查一次
-  checkInterval = setInterval(checkUrl, 500);
-  
-  // 同时监听 URL 变化事件（pushState, replaceState, popstate, hashchange）
   const urlChangeHandler = () => {
     checkUrl();
   };
+
+  // 立即检查一次（页面可能已经跳转）
+  if (checkUrl()) {
+    return; // 如果立即匹配，则不再设置定时器，也不需要注册后续监听
+  }
   
-  // 包装原生方法以监听 URL 变化
-  const originalPushState = history.pushState;
-  const originalReplaceState = history.replaceState;
-  
-  history.pushState = function(...args) {
-    originalPushState.apply(history, args);
-    setTimeout(urlChangeHandler, 100); // 延迟检查，确保 URL 已更新
-  };
-  
-  history.replaceState = function(...args) {
-    originalReplaceState.apply(history, args);
-    setTimeout(urlChangeHandler, 100);
-  };
-  
-  window.addEventListener('popstate', urlChangeHandler);
-  window.addEventListener('hashchange', urlChangeHandler);
+  // 确保全局唯一的 URL 变化事件监听与原生方法包装仅在首次执行一次
+  if (!window.__aiHistoryPatchApplied) {
+    window.__aiHistoryPatchApplied = true;
+    window.__aiHistoryUrlChangeCallbacks = [];
+    
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+    
+    const triggerUrlChangeCallbacks = () => {
+      window.__aiHistoryUrlChangeCallbacks.forEach(cb => {
+        try { cb(); } catch (e) { console.error('执行 URL 变化回调失败:', e); }
+      });
+    };
+    
+    history.pushState = function(...args) {
+      originalPushState.apply(this, args);
+      setTimeout(triggerUrlChangeCallbacks, 100); // 延迟检查，确保 URL 已更新
+    };
+    
+    history.replaceState = function(...args) {
+      originalReplaceState.apply(this, args);
+      setTimeout(triggerUrlChangeCallbacks, 100);
+    };
+    
+    window.addEventListener('popstate', triggerUrlChangeCallbacks);
+    window.addEventListener('hashchange', triggerUrlChangeCallbacks);
+  }
+
+  // 注册当前站点的检测回调并启动定时检查
+  window.__aiHistoryUrlChangeCallbacks.push(urlChangeHandler);
+  checkInterval = setInterval(checkUrl, 500);
   
   console.log(`⏱️ ${siteName} URL 检测已启动，将每 500ms 检查一次，最多检测 ${maxChecks} 次`);
 }

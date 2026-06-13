@@ -405,17 +405,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ success: true });
     return true; // 保持消息通道开放
   }
-});
-
-// 处理来自 iframe 的消息
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
-  if (message.action === 'executeHandler') {
-    const siteHandler = await getHandlerForUrl(message.url);
-    if (siteHandler && siteHandler.searchHandler) {
-      executeSiteHandler(sender.tab.id, message.query, siteHandler).catch(error => {
-        console.error('站点处理失败:', error);
-      });
-    }
+  else if (message.action === 'executeHandler') {
+    // 异步执行站点处理器，因为不需要在这里发送响应，所以可以使用 Promise 处理避免 listener 声明为 async
+    getHandlerForUrl(message.url).then(siteHandler => {
+      if (siteHandler && siteHandler.searchHandler) {
+        executeSiteHandler(sender.tab.id, message.query, siteHandler).catch(error => {
+          console.error('站点处理失败:', error);
+        });
+      }
+    }).catch(error => {
+      console.error('获取站点处理器失败:', error);
+    });
   }
 });
 

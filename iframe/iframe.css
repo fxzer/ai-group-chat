@@ -1407,11 +1407,6 @@ body.has-live-summary-drawer-open #liveSummaryDrawerToggle {
     pointer-events: auto;
 }
 
-/* body 留白防止遮挡 */
-body.has-drawer-open {
-    padding-bottom: 70vh;
-    transition: padding-bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
 
 /* 查询建议 — 与标题同行，水平 chip 样式 */
 .query-suggestions {

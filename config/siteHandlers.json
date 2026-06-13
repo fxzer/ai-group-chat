@@ -1248,7 +1248,7 @@
         "containerSelector": "[data-plugin-identifier=\"block_type:10000\"].flex.justify-end, [data-plugin-identifier*=\"send-message-box\"] [data-testid=\"message_text_content\"]",
         "textSelector": "[data-plugin-identifier=\"block_type:10000\"] .whitespace-pre-wrap, [data-testid=\"message_text_content\"]"
       },
-      "icon": "ai/other.svg",
+      "icon": "ai/doubao.svg",
       "type": "information"
     },
     {
