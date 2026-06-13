@@ -1,3 +1,9 @@
+// 控制调试日志输出，生产模式下屏蔽普通的 console.log 以优化性能
+const DEBUG_MODE = false;
+if (!DEBUG_MODE) {
+  console.log = function() {};
+}
+
 // 全局文件粘贴检测和处理
 let filePasteHandlerAdded = false;
 
@@ -35,6 +41,8 @@ const SUPPORTED_FILE_EXTENSIONS = [
   'zip', 'rar', '7z', 'gz', 'tar', 'bz2', 'xz'
 ];
 
+const FILE_EXTENSION_REGEX = new RegExp(`\\.(${SUPPORTED_FILE_EXTENSIONS.join('|')})$`, 'i');
+
 // 检测是否具有有效的文件扩展名
 function hasValidFileExtension(text) {
   if (!text || typeof text !== 'string') {
@@ -53,8 +61,23 @@ function hasValidFileExtension(text) {
     return false;
   }
   
-  const fileExtensionRegex = new RegExp(`\\.(${SUPPORTED_FILE_EXTENSIONS.join('|')})$`, 'i');
-  return fileExtensionRegex.test(firstLine) && firstLine.length < 100;
+  return FILE_EXTENSION_REGEX.test(firstLine) && firstLine.length < 100;
+}
+
+// 通用的站点过滤函数
+function getFilteredAvailableSites(sites, selectedSiteNames = null) {
+  if (selectedSiteNames && selectedSiteNames.length > 0) {
+    return sites.filter(site => 
+      selectedSiteNames.includes(site.name) &&
+      site.supportIframe !== false && 
+      !site.hidden
+    );
+  }
+  return sites.filter(site => 
+    site.enabled && 
+    site.supportIframe !== false && 
+    !site.hidden
+  );
 }
 
 // 请求剪贴板权限的函数
@@ -216,43 +239,18 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
             
             // 获取站点配置并创建 iframes
+            // 获取站点配置并创建 iframes
             getDefaultSites().then((sites) => {
                 if (sites && sites.length > 0) {
-                    // 如果指定了站点列表，优先使用选中的站点（忽略 enabled 状态）
-                    if (selectedSiteNames && selectedSiteNames.length > 0) {
-                        let availableSites = sites.filter(site => 
-                            selectedSiteNames.includes(site.name) &&
-                            site.supportIframe !== false && 
-                            !site.hidden
-                        );
-                        console.log('根据选中的站点列表过滤:', selectedSiteNames, availableSites);
-                        
-                        if (availableSites.length > 0) {
-                            console.log('使用查询内容创建 iframes:', query, availableSites);
-                            createIframes(query, availableSites);
-                            // 清理 URL 参数，防止刷新时自动重发
-                            const cleanUrl = window.location.pathname + window.location.hash;
-                            window.history.replaceState({}, '', cleanUrl);
-                        } else {
-                            console.log('没有可用的站点');
-                        }
+                    const availableSites = getFilteredAvailableSites(sites, selectedSiteNames);
+                    if (availableSites.length > 0) {
+                        console.log('使用查询内容创建 iframes:', query, availableSites);
+                        createIframes(query, availableSites);
+                        // 清理 URL 参数，防止刷新时自动重发
+                        const cleanUrl = window.location.pathname + window.location.hash;
+                        window.history.replaceState({}, '', cleanUrl);
                     } else {
-                        // 如果没有指定站点列表，使用默认过滤（需要 enabled）
-                        let availableSites = sites.filter(site => 
-                            site.enabled && 
-                            site.supportIframe !== false && 
-                            !site.hidden
-                        );
-
-                        if (availableSites.length > 0) {
-                            console.log('使用查询内容创建 iframes:', query, availableSites);
-                            createIframes(query, availableSites);
-                            // 清理 URL 参数，防止刷新时自动重发
-                            const cleanUrl = window.location.pathname + window.location.hash;
-                            window.history.replaceState({}, '', cleanUrl);
-                        } else {
-                            console.log('没有可用的站点');
-                        }
+                        console.log('没有可用的站点');
                     }
                 }
             });
@@ -261,35 +259,12 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.log('URL 参数 query=true，按直接打开处理');
             getDefaultSites().then((sites) => {
                 if (sites && sites.length > 0) {
-                    // 如果指定了站点列表，优先使用选中的站点（忽略 enabled 状态）
-                    if (selectedSiteNames && selectedSiteNames.length > 0) {
-                        let availableSites = sites.filter(site => 
-                            selectedSiteNames.includes(site.name) &&
-                            site.supportIframe !== false && 
-                            !site.hidden
-                        );
-                        console.log('根据选中的站点列表过滤:', selectedSiteNames, availableSites);
-                        
-                        if (availableSites.length > 0) {
-                            console.log('初始化可用站点:', availableSites);
-                            createIframes('', availableSites);
-                        } else {
-                            console.log('没有可用的站点');
-                        }
+                    const availableSites = getFilteredAvailableSites(sites, selectedSiteNames);
+                    if (availableSites.length > 0) {
+                        console.log('初始化可用站点:', availableSites);
+                        createIframes('', availableSites);
                     } else {
-                        // 如果没有指定站点列表，使用默认过滤（需要 enabled）
-                        let availableSites = sites.filter(site => 
-                            site.enabled && 
-                            site.supportIframe !== false && 
-                            !site.hidden
-                        );
-
-                        if (availableSites.length > 0) {
-                            console.log('初始化可用站点:', availableSites);
-                            createIframes('', availableSites);
-                        } else {
-                            console.log('没有可用的站点');
-                        }
+                        console.log('没有可用的站点');
                     }
                 }
             });
@@ -298,35 +273,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         // 直接打开（方式1）
         getDefaultSites().then((sites) => {
             if (sites && sites.length > 0) {
-                // 如果指定了站点列表，优先使用选中的站点（忽略 enabled 状态）
-                if (selectedSiteNames && selectedSiteNames.length > 0) {
-                    let availableSites = sites.filter(site => 
-                        selectedSiteNames.includes(site.name) &&
-                        site.supportIframe !== false && 
-                        !site.hidden
-                    );
-                    console.log('根据选中的站点列表过滤:', selectedSiteNames, availableSites);
-                    
-                    if (availableSites.length > 0) {
-                        console.log('初始化可用站点:', availableSites);
-                        createIframes('', availableSites);
-                    } else {
-                        console.log('没有可用的站点');
-                    }
+                const availableSites = getFilteredAvailableSites(sites, selectedSiteNames);
+                if (availableSites.length > 0) {
+                    console.log('初始化可用站点:', availableSites);
+                    createIframes('', availableSites);
                 } else {
-                    // 如果没有指定站点列表，使用默认过滤（需要 enabled）
-                    let availableSites = sites.filter(site => 
-                        site.enabled && 
-                        site.supportIframe !== false && 
-                        !site.hidden
-                    );
-
-                    if (availableSites.length > 0) {
-                        console.log('初始化可用站点:', availableSites);
-                        createIframes('', availableSites);
-                    } else {
-                        console.log('没有可用的站点');
-                    }
+                    console.log('没有可用的站点');
                 }
             }
         });
@@ -889,10 +841,6 @@ async function handleUnifiedFilePaste(event) {
     event.preventDefault();
     event.stopPropagation();
     return;
-    
-    // 默认情况：允许默认行为
-    console.log('🎯 默认情况，允许粘贴行为');
-    
   } catch (error) {
     console.error('🎯 粘贴处理出错:', error);
     // 出错时允许默认行为
@@ -1281,7 +1229,7 @@ async function getIframeLatestUrl(iframe, siteName, historyId = null) {
 }
 
 // 创建单个 iframe 时添加标识
-function createSingleIframe(siteName, url, container, query) {
+function createSingleIframe(siteName, url, container, query, keepFullUrl = false) {
   const iframeContainer = document.createElement('div');
   iframeContainer.className = 'iframe-container';
   
@@ -1300,39 +1248,69 @@ function createSingleIframe(siteName, url, container, query) {
   let clickHandlerAdded = false;
   
   iframe.addEventListener('load', () => {
-    if (clickHandlerAdded) return; // 如果已经添加过处理器，直接返回
-    
+    // 1. 设置 iframe 为不可聚焦，并在可能时预防焦点
+    iframe.setAttribute('tabindex', '-1');
+    const searchInput = document.getElementById('searchInput');
     try {
-      // 添加点击事件监听器
-      iframe.contentWindow.addEventListener('click', (e) => {
-        const link = e.target.closest('a');
-        if (link && link.href) {
-          e.preventDefault();
-          window.open(link.href, '_blank');
-           console.log("iframe 内点击事件处理成功")
-        }
-      });
-
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      doc.documentElement.setAttribute('tabindex', '-1');
+      doc.body.setAttribute('tabindex', '-1');
       
-      clickHandlerAdded = true;
+      // 只监听焦点事件，保持搜索框焦点
+      doc.addEventListener('focus', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (searchInput) searchInput.focus();
+      }, true);
     } catch (error) {
-      console.log('无法直接添加监听器，将通过 inject.js 处理');
-      
-      // 只在未添加处理器时注入
-      if (!clickHandlerAdded) {
+      console.log('无法直接访问 iframe 内容，将通过消息通信处理焦点');
+      try {
         iframe.contentWindow.postMessage({
-          type: 'INJECT_CLICK_HANDLER',
+          type: 'PREVENT_FOCUS',
           source: 'iframe-parent'
         }, '*');
-        clickHandlerAdded = true;
+      } catch (postErr) {
+        console.warn('焦点预防消息发送失败:', postErr);
       }
     }
     
-    // 处理查询内容（如果有的话）
+    // 确保搜索输入框保持焦点
+    if (searchInput) {
+      setTimeout(() => {
+        searchInput.focus();
+      }, 100);
+    }
+    
+    // 2. 点击事件拦截监听器（确保只处理一次）
+    if (!clickHandlerAdded) {
+      try {
+        // 添加点击事件监听器
+        iframe.contentWindow.addEventListener('click', (e) => {
+          const link = e.target.closest('a');
+          if (link && link.href) {
+            e.preventDefault();
+            window.open(link.href, '_blank');
+            console.log("iframe 内点击事件处理成功")
+          }
+        });
+        clickHandlerAdded = true;
+      } catch (error) {
+        console.log('无法直接添加监听器，将通过 inject.js 处理');
+        try {
+          iframe.contentWindow.postMessage({
+            type: 'INJECT_CLICK_HANDLER',
+            source: 'iframe-parent'
+          }, '*');
+          clickHandlerAdded = true;
+        } catch (postErr) {
+          console.warn('点击处理器注入消息发送失败:', postErr);
+        }
+      }
+    }
+    
+    // 3. 处理查询内容（如果有的话）
     if (query) {
       console.log("iframe onload 加载完成，查询内容:", query);
-      
-      // 使用异步函数处理
       (async () => {
         const sites = await window.getDefaultSites();
         const site = sites.find(s => s.url === url || url.startsWith(s.url));
@@ -1348,49 +1326,11 @@ function createSingleIframe(siteName, url, container, query) {
         }
       })();
     }
-    
-    // 重新设置输入框焦点
-    document.getElementById('searchInput').focus();
-  });
-  
-
-  
-  // 合并和优化 iframe 加载事件处理
-  iframe.addEventListener('load', () => {
-    const searchInput = document.getElementById('searchInput');
-    
-    // 设置 iframe 为不可聚焦
-    iframe.setAttribute('tabindex', '-1');
-    
-    // 防止 iframe 内容获取焦点
-    try {
-      const doc = iframe.contentDocument || iframe.contentWindow.document;
-      doc.documentElement.setAttribute('tabindex', '-1');
-      doc.body.setAttribute('tabindex', '-1');
-      
-      // 只监听焦点事件，保持搜索框焦点
-      doc.addEventListener('focus', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        searchInput.focus();
-      }, true);
-    } catch (error) {
-      console.log('无法直接访问 iframe 内容，将通过消息通信处理');
-      iframe.contentWindow.postMessage({
-        type: 'PREVENT_FOCUS',
-        source: 'iframe-parent'
-      }, '*');
-    }
-    
-    // 确保搜索输入框保持焦点
-    setTimeout(() => {
-      searchInput.focus();
-    }, 100);
   });
 
 
-  // 如果参数为空,只使用 url 的 host 部分
-  if (!query) {
+  // 如果参数为空,且不要求保留完整 URL,只使用 url 的 host 部分
+  if (!query && !keepFullUrl) {
     try {
       const urlObj = new URL(url);
       url = 'https://' + urlObj.hostname;
@@ -2028,6 +1968,12 @@ async function saveSiteOrderFromSettings() {
 
 // Toast 提示函数
 function showToast(message, duration = 2000) {
+    // 移除已存在的 Toast，避免堆叠
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
     const toast = document.createElement('div');
     toast.className = 'toast';
     toast.textContent = message;
@@ -2285,116 +2231,12 @@ async function loadHistoryIframes(sites) {
     // 清空现有 iframe
     container.innerHTML = '';
     
-    // 不需要导航栏，直接居中显示
-
-    
-    // 为每个站点创建 iframe，直接使用历史记录中的 URL（不进行任何处理）
+    // 复用 createSingleIframe 统一创建，keepFullUrl=true 保留完整会话 URL
     sites.forEach(site => {
       const siteName = site.name;
-      const url = site.url; // 直接使用历史记录中保存的 URL
-      
-      // 确保 isFavorite 字段存在（兼容旧数据）
-      if (site.isFavorite === undefined) {
-        site.isFavorite = false;
-      }
-      
+      const url = site.url;
       console.log('从历史记录创建 iframe:', siteName, url);
-      
-      // 创建 iframe 容器
-      const iframeContainer = document.createElement('div');
-      iframeContainer.className = 'iframe-container';
-      
-      const iframe = document.createElement('iframe');
-      iframe.className = 'ai-iframe';
-      iframe.setAttribute('data-site', siteName);
-      iframe.allow = 'clipboard-read; clipboard-write; microphone; camera; geolocation; autoplay; fullscreen; picture-in-picture; storage-access; web-share';
-      iframe.src = url; // 直接使用历史记录中的 URL
-      
-      // 创建 header
-      const header = document.createElement('div');
-      header.className = 'iframe-header';
-      header.innerHTML = `
-        <span class="site-name">${siteName}</span>
-        <div class="iframe-controls">
-          <button class="fullscreen-btn" title="填充可视区">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M3 6V3h3M13 6V3h-3M3 10v3h3M13 10v3h-3"/>
-            </svg>
-          </button>
-          <button class="open-page-btn" title="在新标签页打开"></button>
-          <button class="copy-link-btn" title="复制链接">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M6.5 9.5a3.5 3.5 0 0 0 5.05.45l2-2a3.5 3.5 0 0 0-4.95-4.95l-1.2 1.2"/>
-              <path d="M9.5 6.5a3.5 3.5 0 0 0-5.05-.45l-2 2a3.5 3.5 0 0 0 4.95 4.95l1.2-1.2"/>
-            </svg>
-          </button>
-          <button class="close-btn"></button>
-        </div>
-      `;
-      
-      // 添加按钮事件
-      const openPageBtn = header.querySelector('.open-page-btn');
-      const copyLinkBtn = header.querySelector('.copy-link-btn');
-      const closeBtn = header.querySelector('.close-btn');
-      
-      // 设置按钮的国际化标题
-      const openInNewTabTitle = chrome.i18n.getMessage('openInNewTab');
-      if (openInNewTabTitle) {
-        openPageBtn.title = openInNewTabTitle;
-      }
-      
-      // 打开页面按钮点击事件
-      openPageBtn.onclick = async (e) => {
-        e.stopPropagation();
-        // 获取 iframe 的最新 URL，传递历史记录 ID（如果存在）
-        const historyId = window._currentHistoryId || null;
-        const iframeUrl = await getIframeLatestUrl(iframe, siteName, historyId);
-        if (iframeUrl) {
-          // 在新标签页打开
-          chrome.tabs.create({ url: iframeUrl });
-        } else {
-          console.warn(`无法获取 ${siteName} 的 URL，尝试使用 iframe.src`);
-          // 如果无法获取 URL，至少尝试使用 iframe.src
-          if (iframe.src && iframe.src !== 'about:blank') {
-            chrome.tabs.create({ url: iframe.src });
-          }
-        }
-      };
-      
-      // 关闭按钮事件
-      // 复制链接按钮
-      copyLinkBtn.onclick = async (e) => {
-        e.stopPropagation();
-        const historyId = window._currentHistoryId || null;
-        const iframeUrl = await getIframeLatestUrl(iframe, siteName, historyId);
-        const urlToCopy = iframeUrl || iframe.src;
-        if (urlToCopy && urlToCopy !== 'about:blank') {
-          try {
-            await navigator.clipboard.writeText(urlToCopy);
-            showToast('链接已复制: ' + siteName);
-          } catch (err) {
-            console.error('复制链接失败:', err);
-          }
-        }
-      };
-
-      closeBtn.onclick = () => {
-        iframeContainer.remove();
-      };
-
-      const fullscreenBtn = header.querySelector('.fullscreen-btn');
-      if (fullscreenBtn) {
-        fullscreenBtn.onclick = (e) => {
-          e.stopPropagation();
-          toggleContainerFullscreen(iframeContainer);
-        };
-      }
-
-      // 组装元素
-      iframeContainer.appendChild(header);
-      iframeContainer.appendChild(iframe);
-      container.appendChild(iframeContainer);
-
+      createSingleIframe(siteName, url, container, null, true);
     });
     
     // 设置搜索框的值（如果有的话）
