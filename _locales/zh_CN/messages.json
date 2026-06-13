@@ -1,0 +1,324 @@
+{
+  "shortName": {
+    "message": "AI Group Chat"
+  },
+  "appName": {
+    "message": "AI Group Chat - 一键对比 ChatGPT, Gemini, Grok 等多个AI"
+  },
+  "extDescription": {
+    "message": "AI Group Chat 帮你从十多个AI中快速找到最佳答案。"
+  },
+  "configTitle": {
+    "message": "AI站点设置"
+  },
+  "saveSuccess": {
+    "message": "配置已保存"
+  },
+  "saveFailed": {
+    "message": "保存失败: $ERROR$",
+    "placeholders": {
+      "error": {
+        "content": "$1"
+      }
+    }
+  },
+  "inputPlaceholder": {
+    "message": "输入要搜索的内容"
+  },
+  "openSettings": {
+    "message": "默认AI对比配置"
+  },
+  "searchWithMultiAI": {
+    "message": "使用 AI Group Chat 搜索"
+  },
+  "startCompare": {
+    "message": "一键发送"
+  },
+  "openPage": {
+    "message": "标签页模式"
+  },
+  "commandDescription": {
+    "message": "快捷键(Mac下 ⌘+M , Windows下 Ctrl+M)"
+  },
+  "contactInfo": {
+    "message": "如果你想增加更多站点，可以与我联系 AIShortcuts@outlook.com"
+  },
+  "popupTitle": {
+    "message": "AI Group Chat"
+  },
+  "column1": {
+    "message": "1列",
+    "description": "一列布局选项"
+  },
+  "column2": {
+    "message": "2列",
+    "description": "两列布局选项"
+  },
+  "column3": {
+    "message": "3列",
+    "description": "三列布局选项"
+  },
+  "column4": {
+    "message": "4列",
+    "description": "四列布局选项"
+  },
+  "closeButton": {
+    "message": "关闭",
+    "description": "关闭按钮文本"
+  },
+  "standaloneModeTitle": {
+    "message": "独立页面模式",
+    "description": "独立页面模式标题"
+  },
+  "collectionModeTitle": {
+    "message": "合集模式",
+    "description": "合集模式标题"
+  },
+  "iframeSiteSettings": {
+    "message": "合集模式设置",
+    "description": "站点设置对话框的标题"
+  },
+  "configButtonTitle": {
+    "message": "快捷入口配置",
+    "description": "入口配置标题"
+  },
+  "floatButton": {
+    "message": "悬浮球",
+    "description": "悬浮按钮的名称"
+  },
+  "selectionSearch": {
+    "message": "划词搜索",
+    "description": "划词搜索的名称"
+  },
+  "contextMenu": {
+    "message": "右键菜单",
+    "description": "右键菜单的名称"
+  },
+  "searchEngine": {
+    "message": "搜索引擎",
+    "description": "搜索引擎的名称"
+  },
+  "deleteConfirm": {
+    "message": "确定要删除这个提示词吗？",
+    "description": "删除提示词的确认消息"
+  },
+  "ruleUpdateTimePrefix": {
+    "message": "规则远程自动更新时间：",
+    "description": "规则更新时间的前缀文本"
+  },
+  "ruleUpdateTimeNotAvailable": {
+    "message": "规则远程自动更新时间：未获取到",
+    "description": "无法获取规则更新时间时显示的消息"
+  },
+  "ruleUpdateTimeError": {
+    "message": "规则远程自动更新时间：获取失败",
+    "description": "获取规则更新时间失败时显示的消息"
+  },
+  "participateRuleDev": {
+    "message": "参与规则开发",
+    "description": "参与规则开发按钮的文本"
+  },
+  "recentUpdateRecords": {
+    "message": "最近更新记录"
+  },
+  "noUpdateHistory": {
+    "message": "暂无更新历史记录"
+  },
+  "newSitesCount": {
+    "message": "新增 $COUNT$ 个站点",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "updatedSitesCount": {
+    "message": "更新 $COUNT$ 个站点",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "totalSitesCount": {
+    "message": "总计 $COUNT$ 个站点",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "participateAISiteRuleDev": {
+    "message": "参与AI站点规则开发"
+  },
+  "checkUpdates": {
+    "message": "检查更新"
+  },
+  "unknownTime": {
+    "message": "未知时间"
+  },
+  "disabledSitesTitle": {
+    "message": "悬浮球禁用网站"
+  },
+  "disabledSitesDescription": {
+    "message": "管理悬浮球被禁用的网站，您可以在这里重新启用悬浮球"
+  },
+  "searchProviderName": {
+    "message": "AI Group Chat"
+  },
+  "searchProviderDescription": {
+    "message": "使用 AI Group Chat 进行多AI对比搜索"
+  },
+  "promptTemplatesTitle": {
+    "message": "提示词模板管理"
+  },
+  "promptTemplatesDescription": {
+    "message": "自定义搜索建议按钮的提示词模板"
+  },
+  "addTemplateButton": {
+    "message": "添加新模板"
+  },
+  "addTemplateTitle": {
+    "message": "添加提示词模板"
+  },
+  "editTemplateTitle": {
+    "message": "编辑提示词模板"
+  },
+  "templateNameLabel": {
+    "message": "模板名称"
+  },
+  "templateNameHelp": {
+    "message": "显示在按钮上的文字"
+  },
+  "templateQueryLabel": {
+    "message": "查询模板"
+  },
+  "templateQueryHelp": {
+    "message": "使用 {query} 作为用户输入的占位符"
+  },
+  "templateOrderLabel": {
+    "message": "显示顺序"
+  },
+  "templateOrderHelp": {
+    "message": "数字越小越靠前显示"
+  },
+  "cancelButton": {
+    "message": "取消"
+  },
+  "saveButton": {
+    "message": "保存"
+  },
+  "editButton": {
+    "message": "编辑"
+  },
+  "deleteButton": {
+    "message": "删除"
+  },
+  "confirmDeleteTemplate": {
+    "message": "确定要删除这个模板吗？"
+  },
+  "templateSavedSuccess": {
+    "message": "模板保存成功"
+  },
+  "templateDeletedSuccess": {
+    "message": "模板删除成功"
+  },
+  "templateNameRequired": {
+    "message": "请输入模板名称"
+  },
+  "templateQueryRequired": {
+    "message": "请输入查询模板"
+  },
+  "localFileDetected": {
+    "message": "检测到本地文件"
+  },
+  "browserSecurityRestriction": {
+    "message": "浏览器安全限制"
+  },
+  "localFileSecurityMessage": {
+    "message": "复制本地文件时，浏览器只能获取文件路径，无法读取文件内容。"
+  },
+  "suggestedActions": {
+    "message": "建议操作："
+  },
+  "uploadFileAction": {
+    "message": "点击顶部 <strong>文件上传按钮</strong> 选择文件"
+  },
+  "dismissWarning": {
+    "message": "我知道了"
+  },
+  "exportResponses": {
+    "message": "导出 AI Group Chat 结果"
+  },
+  "exportModalTitle": {
+    "message": "导出 AI Group Chat 结果"
+  },
+  "historyTitle": {
+    "message": "历史记录"
+  },
+  "historyMaxRecordsTip": {
+    "message": "只保存最近的$COUNT$条记录",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "exportModalTitle": {
+    "message": "导出 AI Group Chat 结果"
+  },
+  "exportFormat": {
+    "message": "导出格式"
+  },
+  "selectSites": {
+    "message": "选择站点"
+  },
+  "preview": {
+    "message": "预览"
+  },
+  "export": {
+    "message": "导出"
+  },
+  "cancel": {
+    "message": "取消"
+  },
+  "exportSuccess": {
+    "message": "导出成功！"
+  },
+  "exportFailed": {
+    "message": "导出失败"
+  },
+  "selectSitesToExport": {
+    "message": "请选择要导出的站点"
+  },
+  "noContentFound": {
+    "message": "没有找到可导出的内容"
+  },
+  "contentExtractionFailed": {
+    "message": "内容提取失败"
+  },
+  "devNotice": {
+    "message": "功能在开发中，可能会有错误或不足"
+  },
+  "pinGuideTitle": {
+    "message": "将扩展固定到工具栏，方便快速访问"
+  },
+  "pinGuideSteps": {
+    "message": "点击工具栏的拼图图标 → 找到「AI Group Chat」→ 点击固定图标"
+  },
+  "userFeedback": {
+    "message": "用户反馈"
+  },
+  "saveFavoriteSites": {
+    "message": "保存"
+  },
+  "saveFavoriteSitesTitle": {
+    "message": "保存当前选中的站点为常用站点"
+  },
+  "favoriteSitesSaved": {
+    "message": "常用站点已保存"
+  },
+  "noSitesSelected": {
+    "message": "请至少选择一个站点"
+  }
+} 

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title data-i18n="appName">AI Group Chat</title>
+    <link rel="stylesheet" href="homepage.css">
+</head>
+<body>
+    <div class="homepage-container">
+        <!-- Pin 引导提示 -->
+        <div id="pinGuideBanner" class="pin-guide-banner" style="display: none;">
+            <div class="pin-guide-content">
+                <div class="pin-guide-icon">📌</div>
+                <div class="pin-guide-text">
+                    <div class="pin-guide-title" data-i18n="pinGuideTitle">Pin the extension for quick access</div>
+                    <div class="pin-guide-steps" data-i18n="pinGuideSteps">Click the puzzle icon in the toolbar → Find "AI Group Chat" → Click the pin icon</div>
+                </div>
+                <img id="pinGuideImage" src="" alt="Pin" class="pin-guide-image">
+                <button id="pinGuideClose" class="pin-guide-close" aria-label="Close">×</button>
+            </div>
+        </div>
+        <div class="search-bar">
+            <div class="search-input-container">
+                <div class="input-wrapper">
+                    <textarea 
+                        id="searchInput" 
+                        placeholder=""
+                        rows="1"
+                    ></textarea>
+                    <button id="fileUploadButton" class="file-upload-btn" title="上传文件到所有AI站点">
+                        <img src="../icons/attachment.png" alt="上传文件">
+                    </button>
+                    <button id="searchButton" class="search-btn" data-i18n="startCompare">一键发送</button>
+                </div>
+                <div id="querySuggestions" class="query-suggestions" style="display: none;">
+                    <!-- queryItem.name 将显示在这里 -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="sites-section">
+            <div class="sites-header">
+                <h3 class="sites-title" data-i18n="selectAISites">AI sites</h3>
+                <button id="saveSitesBtn" class="save-settings-btn" title="保存当前选中的站点为常用站点">
+                    <img src="../icons/save.png" alt="save" class="save-icon">
+                </button>
+            </div>
+            <div id="sitesList" class="sites-list">
+                <!-- 站点列表将通过 JavaScript 动态添加 -->
+            </div>
+        </div>
+        <div class="action-links">
+            <a id="settingsLink" class="action-link" href="#" data-i18n="settingsLink">设置</a>
+            <a id="historyLink" class="action-link" href="#" data-i18n="historyLink">历史记录</a>
+            <a id="feedbackLink" class="action-link" href="#" data-i18n="userFeedback">用户反馈</a>
+            <a id="reviewLink" class="action-link" href="#" data-i18n="reviewLink">五星好评</a>
+        </div>
+        <div class="automation-notice" data-i18n="automationNotice">如果网站更新，对应的自动化提问功能会失效，敬请谅解。发现失效，可以与我联系更新。</div>
+    </div>
+    <script src="../config/baseConfig.js"></script>
+    <script src="../config/analytics.js"></script>
+    <script src="homepage.js"></script>
+</body>
+</html>
+

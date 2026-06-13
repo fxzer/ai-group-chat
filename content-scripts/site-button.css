@@ -1,0 +1,72 @@
+/**
+ * 站点按钮样式
+ */
+
+.multi-ai-site-button-container {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.multi-ai-site-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.multi-ai-site-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.multi-ai-site-button:active {
+  background-color: rgba(0, 0, 0, 0.1);
+  transform: scale(0.95);
+}
+
+.multi-ai-site-button-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* 针对不同站点的样式调整 */
+/* ChatGPT */
+button[data-testid="send-button"] ~ .multi-ai-site-button-container {
+  margin-left: 4px;
+}
+
+/* Claude */
+button[aria-label="Send message"] ~ .multi-ai-site-button-container,
+button[aria-label="Send Message"] ~ .multi-ai-site-button-container,
+button[aria-label="Send"] ~ .multi-ai-site-button-container {
+  margin-left: 4px;
+}
+
+/* Gemini */
+[contenteditable="true"] ~ .multi-ai-site-button-container {
+  margin-left: 4px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .multi-ai-site-button {
+    width: 28px;
+    height: 28px;
+  }
+
+  .multi-ai-site-button-icon {
+    width: 20px;
+    height: 20px;
+  }
+}

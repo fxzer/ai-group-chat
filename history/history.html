@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>History</title>
+    <link rel="stylesheet" href="history.css">
+</head>
+<body>
+    <div class="history-container">
+        <div class="history-header">
+            <h1>History</h1>
+            <button id="clearHistoryBtn" class="clear-btn">Clear History</button>
+        </div>
+        <div class="search-container">
+            <input type="text" id="searchInput" class="search-input" placeholder="Search by query ...">
+        </div>
+        <div id="historyList" class="history-list">
+            <!-- 历史记录将动态加载到这里 -->
+        </div>
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <div class="empty-icon">📋</div>
+            <div class="empty-text">No history record</div>
+        </div>
+        <div id="noResultsState" class="empty-state" style="display: none;">
+            <div class="empty-icon">🔍</div>
+            <div class="empty-text">No results found</div>
+            <div class="empty-hint">Try different keywords</div>
+        </div>
+    </div>
+    <script src="../config/baseConfig.js"></script>
+    <script src="history.js"></script>
+</body>
+</html>

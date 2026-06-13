@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>AI 群聊</title>
+    <link rel="stylesheet" href="iframe.css">
+</head>
+<body>
+    <!-- iframes 占满全屏 -->
+    <div id="iframes-container"></div>
+
+    <!-- 隐藏的文件选择 input -->
+    <input type="file" id="fileInput" style="display: none;" multiple 
+        accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.rtf,.pages,.numbers,.key,.txt,.csv,.json,.xml,.html,.css,.js,.py,.java,.cpp,.c,.php,.zip,.rar,.7z,.gz,.tar,.wps,.et,.dps,.vsd,.vsdx,.pub,.one,.msg,.eml,.mpp">
+
+    <!-- 右下角浮动菜单 -->
+    <div id="floatUi" class="float-ui">
+
+        <!-- 输入面板（底部抽屉） -->
+        <div id="inputPanel" class="input-drawer" style="display: none;">
+            <div class="drawer-header">
+                <div class="drawer-header-left">
+                    <span class="drawer-title-label">发送到</span>
+                    <div class="drawer-site-icons" id="drawerSiteIcons"></div>
+                    <span class="drawer-site-count" id="drawerSiteCount">3个</span>
+                </div>
+                <div class="drawer-header-right">
+                    <div id="querySuggestions" class="query-suggestions"></div>
+                    <button class="panel-close" data-panel="inputPanel">×</button>
+                </div>
+            </div>
+            <div class="drawer-body">
+                <div class="drawer-textarea-wrapper">
+                    <textarea id="searchInput" class="drawer-textarea" placeholder="输入你的问题或需求..."></textarea>
+                    <button id="clearInputBtn" class="drawer-clear-btn" title="清空输入" style="display:none;">×</button>
+                </div>
+            </div>
+            <div class="drawer-footer">
+                <button id="newSessionBtn" class="footer-btn" title="新建会话">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    <span>新建会话</span>
+                </button>
+                <div class="drawer-right-group">
+                    <button id="fileUploadButton" class="footer-btn" title="上传文件到所有AI站点">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <span>上传附件</span>
+                    </button>
+                    <button id="searchButton" class="drawer-send-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                        <span>一键发送</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 设置面板 -->
+        <div id="settingsPanel" class="float-panel settings-panel" style="display: none;">
+            <div class="panel-header">
+                <span>设置</span>
+                <div class="column-selector">
+                    <div class="column-options">
+                        <button class="column-option-btn" data-columns="1" title="1列">
+                            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+                                <rect x="6" y="3" width="8" height="14" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+                            </svg>
+                        </button>
+                        <button class="column-option-btn" data-columns="2" title="2列">
+                            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+                                <rect x="2" y="3" width="6" height="14" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+                                <rect x="12" y="3" width="6" height="14" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+                            </svg>
+                        </button>
+                        <button class="column-option-btn active" data-columns="3" title="3列">
+                            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+                                <rect x="1" y="3" width="4" height="14" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+                                <rect x="8" y="3" width="4" height="14" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+                                <rect x="15" y="3" width="4" height="14" rx="1" stroke="currentColor" stroke-width="2" fill="none"/>
+                            </svg>
+                        </button>
+                        <button class="column-option-btn" data-columns="4" title="4列">
+                            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block;">
+                                <rect x="2" y="3" width="2" height="14" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                                <rect x="6.7" y="3" width="2" height="14" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                                <rect x="11.3" y="3" width="2" height="14" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                                <rect x="16" y="3" width="2" height="14" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <button class="panel-close" data-panel="settingsPanel">×</button>
+            </div>
+            <div class="panel-body">
+                <div class="setting-section site-section">
+                    <div id="siteListContainer" class="site-list-container"></div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 历史面板 -->
+        <div id="historyPanel" class="float-panel history-panel" style="display: none;">
+            <div class="panel-header">
+                <span>聊天历史</span>
+                <div class="panel-header-actions">
+                    <button id="viewAllHistoryBtn" class="panel-icon-btn" title="查看所有历史记录">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                    </button>
+
+                    <button class="panel-close" data-panel="historyPanel">×</button>
+                </div>
+            </div>
+            <div class="panel-body" id="historyListBody"></div>
+        </div>
+
+        <!-- 底部按钮组 -->
+        <div class="float-buttons">
+            <button id="historyToggleBtn" class="float-btn" title="聊天历史">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+            </button>
+            <button id="settingsToggleBtn" class="float-btn" title="设置">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+            </button>
+            <button id="inputToggleBtn" class="float-btn primary" title="输入查询">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast 提示 -->
+    <div id="toast" class="toast" style="display: none;"></div>
+
+    <script src="../config/baseConfig.js"></script>
+    <script src="../config/analytics.js"></script>
+    <script type="module" src="iframe.js"></script>
+    <script src="export-responses.js"></script>
+</body>
+</html>

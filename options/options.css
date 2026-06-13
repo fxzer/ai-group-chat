@@ -1,0 +1,341 @@
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f5f5f5;
+  font-family: Arial, sans-serif;
+}
+
+.page-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ===== 顶部 Tab 导航 ===== */
+.tab-nav {
+  display: flex;
+  justify-content: center;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.tab-nav-inner {
+  display: flex;
+  width: 100%;
+  max-width: 800px;
+  padding: 0 20px;
+}
+
+.tab-link {
+  display: flex;
+  align-items: center;
+  padding: 14px 24px;
+  color: #666;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab-link:hover {
+  color: #333;
+  background: #f8f9fa;
+}
+
+.tab-link.active {
+  color: #00a240;
+  border-bottom-color: #00a240;
+}
+
+/* 主内容区域 */
+.main-content {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+
+.container {
+  width: 100%;
+  max-width: 800px;
+  margin: 0;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.settings-section {
+  margin-bottom: 40px;
+}
+
+h1 {
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 24px;
+}
+
+/* 站点配置卡片 */
+.site-config {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 5px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.site-config.dragging {
+  transform: rotate(2deg) scale(1.02);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  z-index: 1000;
+}
+
+.drag-placeholder {
+  background: #e8f5e9;
+  border: 2px dashed #00a240;
+  border-radius: 8px;
+  margin-bottom: 5px;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+}
+
+/* 站点头部 */
+.site-header {
+  display: flex;
+  align-items: center;
+}
+.site-name-display{
+  font-size: 16px;
+}
+
+#buttonSiteConfigs .site-header {
+  justify-content: space-between;
+}
+
+.drag-handle {
+  cursor: grab;
+  color: #999;
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px;
+  user-select: none;
+  transition: color 0.2s;
+}
+
+.drag-handle:hover {
+  color: #666;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.site-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.site-name-display {
+  font-weight: bold;
+  margin-left: 6px;
+}
+
+/* 开关按钮 */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #00a240;
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+/* Toast提示 */
+.toast {
+  visibility: hidden;
+  min-width: 250px;
+  margin-left: -125px;
+  background-color: #333;
+  color: #fff;
+  text-align: center;
+  border-radius: 4px;
+  padding: 16px;
+  position: fixed;
+  z-index: 9999;
+  left: 50%;
+  bottom: 30px;
+  opacity: 0;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+.toast.show {
+  visibility: visible;
+  opacity: 1;
+}
+
+.contact-info {
+  margin-top: 20px;
+  padding: 10px;
+  color: #666;
+  font-size: 14px;
+  text-align: center;
+  border-top: 1px solid #eee;
+}
+
+.site-section {
+    margin-bottom: 30px;
+}
+
+.site-section h2 {
+    font-size: 1.2em;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+.site-configs {
+    display: grid;
+    gap: 5px;
+}
+
+/* 响应式：窄屏时 tab 可横向滚动 */
+@media (max-width: 600px) {
+  .tab-nav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab-link {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+  .main-content {
+    padding: 16px;
+  }
+  .container {
+    padding: 15px;
+  }
+}
+
+/* 规则信息区域样式 - 移除所有样式 */
+.rule-info-section {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 14px;
+  color: #666;
+}
+
+.dev-button {
+  background: none;
+  color: #00a240;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 14px;
+  text-decoration: underline;
+}
+
+.dev-button:hover {
+  color: #008230;
+}
+
+/* 禁用网站管理样式 */
+.disabled-sites-section {
+  max-width: 600px;
+}
+
+.disabled-sites-list {
+  margin-top: 20px;
+}
+
+.disabled-site-item {
+  transition: all 0.2s ease;
+}
+
+.disabled-site-item:hover {
+  background-color: #f8f9fa;
+  border-color: #d0d0d0;
+}
+
+.site-info {
+  flex: 1;
+}
+
+.site-domain {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.site-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.enable-btn:hover {
+  background: #008230 !important;
+}
+
+.empty-state, .error-state {
+  border: 2px dashed #e0e0e0;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.error-state {
+  border-color: #ffcdd2;
+  background: #ffebee;
+}
