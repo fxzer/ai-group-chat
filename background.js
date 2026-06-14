@@ -2,6 +2,7 @@
 const DEBUG_MODE = false;
 
 importScripts('./config/baseConfig.js');     // 加载基础配置（包含开发环境配置）
+importScripts('./config/siteDetector.js');    // 加载统一的站点检测器
 
 // 开发环境：输出当前扩展ID供search_url使用
 function logExtensionIdForDevelopment() {
@@ -169,7 +170,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     }
     
     // 获取当前存储的数据
-    const { favoriteSites, buttonConfig } = await chrome.storage.sync.get(['favoriteSites', 'buttonConfig']);
+    const { buttonConfig } = await chrome.storage.sync.get(['buttonConfig']);
     const { siteSettings } = await chrome.storage.sync.get(['siteSettings']);
     
     // 处理 sites 数据 - 将完整配置存储到 local，用户设置存储到 sync
@@ -197,15 +198,6 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         pinGuideShown: false 
       });
       console.log('已标记为新用户（pinGuideShown: false）');
-      
-      // 处理 favoriteSites 数据
-      if (!favoriteSites || !favoriteSites.length) {
-        const defaultFavoriteSites = await self.AppConfigManager.getDefaultFavoriteSites();
-        await chrome.storage.sync.set({ 
-          favoriteSites: defaultFavoriteSites 
-        });
-        console.log('已初始化 favoriteSites:', defaultFavoriteSites);
-      }
 
       // 处理 buttonConfig 数据
       if (!buttonConfig) {
@@ -241,62 +233,10 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   }
 });
 
-// 在扩展启动时检查规则
-chrome.declarativeNetRequest.getSessionRules().then(rules => {
-  console.log('当前生效的规则:', rules);
-});
-
-
-// 如果规则为空，尝试动态添加规则
+// 清理之前可能遗留的动态规则 999（目前已通过 static ruleset_1 / rules.json 替代）
 chrome.declarativeNetRequest.updateSessionRules({
-  removeRuleIds: [999], // 先清除可能存在的规则 999
-  addRules: [{
-    "id": 999,
-    "priority": 1,
-    "action": {
-      "type": "modifyHeaders",
-      "responseHeaders": [
-        {
-          "header": "Sec-Fetch-Dest",
-          "operation": "set",
-          "value": "document"
-        },
-        {
-          "header": "Sec-Fetch-Site",
-          "operation": "set",
-          "value": "same-origin"
-        },
-        {
-          "header": "Sec-Fetch-Mode",
-          "operation": "set",
-          "value": "navigate"
-        },
-        {
-          "header": "Sec-Fetch-User",
-          "operation": "set",
-          "value": "?1"
-        },
-        {
-          "header": "content-security-policy",
-          "operation": "remove"
-        },
-        {
-          "header": "x-frame-options",
-          "operation": "remove"
-        }
-      ]
-    },
-    "condition": {
-      "urlFilter": "*://*/*",
-      "resourceTypes": ["main_frame", "sub_frame"]
-    }
-  }]
-}).then(() => {
-  // 再次检查规则
-  return chrome.declarativeNetRequest.getSessionRules();
-}).then(rules => {
-  console.log('更新后的规则:', rules);
-});
+  removeRuleIds: [999]
+}).catch(err => console.error('清除动态规则失败:', err));
 
 
 
@@ -749,9 +689,15 @@ async function createContextMenu() {
   // 设置防抖延迟
   contextMenuTimeout = setTimeout(async () => {
     try {
-      // 先移除所有现有菜单，然后创建新菜单
-      // 这样可以避免重复创建的问题
+      // 先移除所有现有菜单
       await chrome.contextMenus.removeAll();
+      
+      // 读取配置，只有在 contextMenu 为 true 时才创建
+      const { buttonConfig } = await chrome.storage.sync.get('buttonConfig');
+      if (buttonConfig && buttonConfig.contextMenu === false) {
+        console.log('右键菜单功能被禁用');
+        return;
+      }
       
       // 创建页面上的右键菜单（选中文本时显示）
       chrome.contextMenus.create({
@@ -760,8 +706,6 @@ async function createContextMenu() {
         contexts: ["selection"]  // 只在选中文本时显示
       });
       console.log('页面右键菜单已创建');
-      
-      console.log('扩展图标右键菜单已创建');
     } catch (error) {
       console.error('创建右键菜单失败:', error);
     }
@@ -778,10 +722,14 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 
 
 // 监听扩展卸载事件
-chrome.runtime.setUninstallURL(self.externalLinks?.uninstallSurvey || '', () => {
-  if (chrome.runtime.lastError) {
-    console.error('设置卸载 URL 失败:', chrome.runtime.lastError);
-  }
+self.AppConfigManager.getExternalLinks().then(externalLinks => {
+  chrome.runtime.setUninstallURL(externalLinks?.uninstallSurvey || '', () => {
+    if (chrome.runtime.lastError) {
+      console.error('设置卸载 URL 失败:', chrome.runtime.lastError);
+    }
+  });
+}).catch(err => {
+  console.error('获取卸载 URL 失败:', err);
 });
 
 // 跟踪侧边栏状态
@@ -808,46 +756,62 @@ try {
 
 
 // Omnibox 事件处理
-chrome.omnibox.onInputChanged.addListener((text, suggest) => {
-  console.log('Omnibox 输入变化:', text);
-  
-  // 提供搜索建议
-  const suggestions = [
-    {
-      content: `ai ${text}`,
-      description: `🔍 使用AI快捷键搜索: ${text}`
+chrome.omnibox.onInputChanged.addListener(async (text, suggest) => {
+  try {
+    const { buttonConfig } = await chrome.storage.sync.get('buttonConfig');
+    if (buttonConfig && buttonConfig.searchEngine === false) {
+      return;
     }
-  ];
-  
-  suggest(suggestions);
+    console.log('Omnibox 输入变化:', text);
+    
+    // 提供搜索建议
+    const suggestions = [
+      {
+        content: `ai ${text}`,
+        description: `🔍 使用AI快捷键搜索: ${text}`
+      }
+    ];
+    
+    suggest(suggestions);
+  } catch (error) {
+    console.error('Omnibox 处理出错:', error);
+  }
 });
 
-chrome.omnibox.onInputEntered.addListener((text, disposition) => {
-  console.log('Omnibox 输入确认:', text, disposition);
-  
-  // 解析输入文本
-  const query = text.replace(/^ai\s+/, '').trim();
-  
-  if (query) {
-    // 打开AI快捷键搜索页面
-    const searchUrl = chrome.runtime.getURL(`iframe/iframe.html?query=${encodeURIComponent(query)}`);
-    
-    if (disposition === 'currentTab') {
-      // 在当前标签页打开
-      chrome.tabs.update({ url: searchUrl });
-    } else {
-      // 在新标签页打开
-      chrome.tabs.create({ url: searchUrl });
+chrome.omnibox.onInputEntered.addListener(async (text, disposition) => {
+  try {
+    const { buttonConfig } = await chrome.storage.sync.get('buttonConfig');
+    if (buttonConfig && buttonConfig.searchEngine === false) {
+      return;
     }
-  } else {
-    // 如果没有查询内容，直接打开AI快捷键页面
-    const defaultUrl = chrome.runtime.getURL('iframe/iframe.html');
+    console.log('Omnibox 输入确认:', text, disposition);
     
-    if (disposition === 'currentTab') {
-      chrome.tabs.update({ url: defaultUrl });
+    // 解析输入文本
+    const query = text.replace(/^ai\s+/, '').trim();
+    
+    if (query) {
+      // 打开AI快捷键搜索页面
+      const searchUrl = chrome.runtime.getURL(`iframe/iframe.html?query=${encodeURIComponent(query)}`);
+      
+      if (disposition === 'currentTab') {
+        // 在当前标签页打开
+        chrome.tabs.update({ url: searchUrl });
+      } else {
+        // 在新标签页打开
+        chrome.tabs.create({ url: searchUrl });
+      }
     } else {
-      chrome.tabs.create({ url: defaultUrl });
+      // 如果没有查询内容，直接打开AI快捷键页面
+      const defaultUrl = chrome.runtime.getURL('iframe/iframe.html');
+      
+      if (disposition === 'currentTab') {
+        chrome.tabs.update({ url: defaultUrl });
+      } else {
+        chrome.tabs.create({ url: defaultUrl });
+      }
     }
+  } catch (error) {
+    console.error('Omnibox 处理出错:', error);
   }
 });
 

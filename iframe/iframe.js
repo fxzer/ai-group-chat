@@ -172,6 +172,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const urlParams = new URLSearchParams(window.location.search);
     const hasQueryParam = urlParams.has('query');
     const hasSitesParam = urlParams.has('sites');
+    const historyId = urlParams.get('historyId');
     
     // 获取指定的站点列表（如果存在）
     let selectedSiteNames = null;
@@ -183,37 +184,52 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     }
     
-    if (hasQueryParam) {
-        // 从 URL 参数中获取查询内容
-        const query = urlParams.get('query');
-        console.log('从 URL 参数获取查询内容:', query);
-        
-        if (query && query !== 'true') {
-            // 将查询内容填入搜索框
-            const searchInput = document.getElementById('searchInput');
-            if (searchInput) {
-                searchInput.value = query;
-            }
+    // 默认加载函数
+    function initializeDefaultLoad() {
+        if (hasQueryParam) {
+            // 从 URL 参数中获取查询内容
+            const query = urlParams.get('query');
+            console.log('从 URL 参数获取查询内容:', query);
             
-            // 获取站点配置并创建 iframes
-            // 获取站点配置并创建 iframes
-            getDefaultSites().then((sites) => {
-                if (sites && sites.length > 0) {
-                    const availableSites = getFilteredAvailableSites(sites, selectedSiteNames);
-                    if (availableSites.length > 0) {
-                        console.log('使用查询内容创建 iframes:', query, availableSites);
-                        createIframes(query, availableSites);
-                        // 清理 URL 参数，防止刷新时自动重发
-                        const cleanUrl = window.location.pathname + window.location.hash;
-                        window.history.replaceState({}, '', cleanUrl);
-                    } else {
-                        console.log('没有可用的站点');
-                    }
+            if (query && query !== 'true') {
+                // 将查询内容填入搜索框
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    searchInput.value = query;
                 }
-            });
+                
+                // 获取站点配置并创建 iframes
+                getDefaultSites().then((sites) => {
+                    if (sites && sites.length > 0) {
+                        const availableSites = getFilteredAvailableSites(sites, selectedSiteNames);
+                        if (availableSites.length > 0) {
+                            console.log('使用查询内容创建 iframes:', query, availableSites);
+                            createIframes(query, availableSites);
+                            // 清理 URL 参数，防止刷新时自动重发
+                            const cleanUrl = window.location.pathname + window.location.hash;
+                            window.history.replaceState({}, '', cleanUrl);
+                        } else {
+                            console.log('没有可用的站点');
+                        }
+                    }
+                });
+            } else {
+                // 如果查询参数是 'true' 或空，按直接打开处理
+                console.log('URL 参数 query=true，按直接打开处理');
+                getDefaultSites().then((sites) => {
+                    if (sites && sites.length > 0) {
+                        const availableSites = getFilteredAvailableSites(sites, selectedSiteNames);
+                        if (availableSites.length > 0) {
+                            console.log('初始化可用站点:', availableSites);
+                            createIframes('', availableSites);
+                        } else {
+                            console.log('没有可用的站点');
+                        }
+                    }
+                });
+            }
         } else {
-            // 如果查询参数是 'true' 或空，按直接打开处理
-            console.log('URL 参数 query=true，按直接打开处理');
+            // 直接打开（方式1）
             getDefaultSites().then((sites) => {
                 if (sites && sites.length > 0) {
                     const availableSites = getFilteredAvailableSites(sites, selectedSiteNames);
@@ -226,19 +242,35 @@ document.addEventListener('DOMContentLoaded', async function() {
                 }
             });
         }
-    } else {
-        // 直接打开（方式1）
-        getDefaultSites().then((sites) => {
-            if (sites && sites.length > 0) {
-                const availableSites = getFilteredAvailableSites(sites, selectedSiteNames);
-                if (availableSites.length > 0) {
-                    console.log('初始化可用站点:', availableSites);
-                    createIframes('', availableSites);
-                } else {
-                    console.log('没有可用的站点');
+    }
+
+    if (historyId) {
+        console.log('从 URL 参数检测到历史记录 ID:', historyId);
+        chrome.storage.local.get('pkHistory').then(({ pkHistory = [] }) => {
+            const historyItem = pkHistory.find(item => item.id === historyId);
+            if (historyItem) {
+                console.log('找到匹配的历史记录项:', historyItem);
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput && historyItem.query) {
+                    searchInput.value = historyItem.query;
+                    window._lastQuery = historyItem.query;
                 }
+                window._currentHistoryId = historyItem.id;
+                loadHistoryIframes(historyItem.sites);
+                
+                // 清理 URL 参数，防止刷新时自动重发
+                const cleanUrl = window.location.pathname + window.location.hash;
+                window.history.replaceState({}, '', cleanUrl);
+            } else {
+                console.warn('未找到匹配的历史记录项:', historyId);
+                initializeDefaultLoad();
             }
+        }).catch(err => {
+            console.error('读取历史记录失败:', err);
+            initializeDefaultLoad();
         });
+    } else {
+        initializeDefaultLoad();
     }
 
     // 列数选项点击监听器
@@ -434,10 +466,15 @@ function initFloatingUI() {
         }
     });
 
-    // 阻止面板内点击事件冒泡到文档
+    // 阻止面板内点击事件冒泡到文档，且点击遮罩层外部关闭
     [inputPanel, settingsPanel, historyPanel].forEach(panel => {
         if (panel) {
-            panel.addEventListener('click', (e) => e.stopPropagation());
+            panel.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if ((panel === settingsPanel || panel === historyPanel) && e.target === panel) {
+                    panel.style.display = 'none';
+                }
+            });
         }
     });
 
@@ -455,6 +492,7 @@ function initFloatingUI() {
             }
             // 关闭当前历史记录上下文
             window._currentHistoryId = null;
+            window._lastQuery = '';
             // 清空 iframe 容器
             const container = document.getElementById('iframes-container');
             if (container) {
@@ -520,6 +558,7 @@ async function loadHistoryList() {
                     const searchInput = document.getElementById('searchInput');
                     if (searchInput && item.query) {
                         searchInput.value = item.query;
+                        window._lastQuery = item.query;
                     }
                     
                     // 加载 iframe
@@ -1231,11 +1270,15 @@ function createSingleIframe(siteName, url, container, query, keepFullUrl = false
       }
     }
     
-    // 确保搜索输入框保持焦点
+    // 确保搜索输入框保持焦点（仅在输入面板打开时）
     if (searchInput) {
-      setTimeout(() => {
-        searchInput.focus();
-      }, 100);
+      const inputPanel = document.getElementById('inputPanel');
+      const isDrawerOpen = inputPanel && inputPanel.style.display !== 'none' && inputPanel.style.display !== '';
+      if (isDrawerOpen) {
+        setTimeout(() => {
+          searchInput.focus();
+        }, 100);
+      }
     }
     
     // 2. 点击事件拦截监听器（确保只处理一次）
@@ -2089,6 +2132,11 @@ function shanshuo() {
 
 
 async function iframeFresh(query) {    
+      window._lastQuery = query;
+      if (typeof window.clearSummaryCache === 'function') {
+        window.clearSummaryCache();
+      }
+
       // 立即记录历史：不需要等待 iframe 加载完成（sites 会由后续机制更新）
       // 并返回本次 PK 的 historyId，避免后续 iframe URL 更新“写错历史记录”
       let historyId = null;
@@ -2211,6 +2259,7 @@ async function loadHistoryIframes(sites) {
       const searchInput = document.getElementById('searchInput');
       if (searchInput) {
         searchInput.value = query;
+        window._lastQuery = query;
       }
     }
     
@@ -2676,13 +2725,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 在父页面级别阻止 iframe 获取焦点，保持搜索输入框的焦点 (全局注册一次，避免泄露)
   document.addEventListener('focusin', (e) => {
     if (e.target.tagName === 'IFRAME') {
-      e.preventDefault();
-      const searchInput = document.getElementById('searchInput');
-      if (searchInput) {
-        searchInput.focus();
+      const inputPanel = document.getElementById('inputPanel');
+      const isDrawerOpen = inputPanel && inputPanel.style.display !== 'none' && inputPanel.style.display !== '';
+      
+      if (isDrawerOpen) {
+        // 检查鼠标是否在 iframe 区域。如果不是在 iframe 区域，则是自动加载的夺焦行为
+        const isMouseOverIframe = !!document.querySelector('.iframe-container:hover, #iframes-container:hover');
+        if (!isMouseOverIframe) {
+          e.preventDefault();
+          const searchInput = document.getElementById('searchInput');
+          if (searchInput) {
+            searchInput.focus();
+          }
+        }
       }
     }
   }, true);
+
+  // 焦点保护：防止输入框失焦到 iframe (例如某些 AI 网页加载时脚本强行夺焦)
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    searchInput.addEventListener('blur', () => {
+      const inputPanel = document.getElementById('inputPanel');
+      const isDrawerOpen = inputPanel && inputPanel.style.display !== 'none' && inputPanel.style.display !== '';
+      if (isDrawerOpen) {
+        // 延迟一瞬检查，确保 activeElement 状态已更新
+        setTimeout(() => {
+          if (document.activeElement && document.activeElement.tagName === 'IFRAME') {
+            // 如果鼠标不悬停在 iframe 区域上，说明是网页自动夺焦，重新获取焦点
+            const isMouseOverIframe = !!document.querySelector('.iframe-container:hover, #iframes-container:hover');
+            if (!isMouseOverIframe) {
+              searchInput.focus();
+            }
+          }
+        }, 50);
+      }
+    });
+  }
 
   // 全局统一处理来自 iframe 的消息，避免在每次创建 iframe 时重复注册监听器
   window.addEventListener('message', (event) => {
@@ -2709,6 +2788,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
           break;
         }
+      }
+    }
+
+    // 3. 处理双击 Alt/Option 呼出/隐藏输入弹窗消息
+    if (event.data && event.data.type === 'TOGGLE_INPUT_DRAWER' && event.data.source === 'inject-script') {
+      const inputToggle = document.getElementById('inputToggleBtn');
+      if (inputToggle) {
+        inputToggle.click();
       }
     }
   });
@@ -3500,14 +3587,45 @@ function toggleContainerFullscreen(iframeContainer) {
   document.body.style.overflow = isExpanded ? 'hidden' : '';
 }
 
-// 全局 ESC：有 expanded 容器时退出
+// 全局 ESC 监听：处理全屏容器退出 & 输入弹窗关闭
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
+  
+  // 1. 如果有展开的全屏 iframe 容器，退出全屏
   const expanded = document.querySelector('.iframe-container.expanded');
   if (expanded) {
     toggleContainerFullscreen(expanded);
+    return;
+  }
+  
+  // 2. 如果输入面板是打开状态，关闭输入面板
+  const inputPanel = document.getElementById('inputPanel');
+  if (inputPanel && inputPanel.style.display !== 'none' && inputPanel.style.display !== '') {
+    const inputToggle = document.getElementById('inputToggleBtn');
+    if (inputToggle) {
+      inputToggle.click();
+    }
   }
 });
+
+// 双击 Alt/Option 呼出/隐藏输入弹窗（在父窗口焦点的场景）
+(function() {
+  let lastAltPressTime = 0;
+  window.addEventListener('keydown', function(e) {
+    if (e.key === 'Alt') {
+      const currentTime = Date.now();
+      if (currentTime - lastAltPressTime < 300) {
+        const inputToggle = document.getElementById('inputToggleBtn');
+        if (inputToggle) {
+          inputToggle.click();
+        }
+        lastAltPressTime = 0;
+      } else {
+        lastAltPressTime = currentTime;
+      }
+    }
+  });
+})();
 
 
 

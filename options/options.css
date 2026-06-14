@@ -209,6 +209,45 @@ input:checked + .slider:before {
     gap: 5px;
 }
 
+/* Tab 导航样式 */
+.tab-nav {
+  display: flex;
+  border-bottom: 1px solid #dee2e6;
+  margin-bottom: 24px;
+  gap: 8px;
+}
+
+.tab-link {
+  background: none;
+  border: none;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  border-radius: 4px 4px 0 0;
+}
+
+.tab-link:hover {
+  color: #00a240;
+  background-color: #f8f9fa;
+}
+
+.tab-link.active {
+  color: #00a240;
+  border-bottom-color: #00a240;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
 /* 响应式：窄屏时 tab 可横向滚动 */
 @media (max-width: 600px) {
   .tab-nav {

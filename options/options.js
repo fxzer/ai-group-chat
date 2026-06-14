@@ -65,91 +65,7 @@ function showMessage(message, isError = false) {
 
 
 
-// 初始化规则信息
-async function initializeRuleInfo() {
-  try {
-    let timeDisplay = chrome.i18n.getMessage('ruleUpdateTimePrefix');
-    
-    // 获取存储中的版本时间
-    let storageTime = null;
-    const { siteConfigVersion } = await chrome.storage.local.get('siteConfigVersion');
-    if (siteConfigVersion) {
-      try {
-        const timestamp = parseInt(siteConfigVersion);
-        if (!isNaN(timestamp)) {
-          storageTime = new Date(timestamp);
-          console.log('存储中的时间:', storageTime);
-        }
-      } catch (error) {
-        console.error('解析存储时间失败:', error);
-      }
-    }
-    
-    // 获取本地配置文件的时间
-    let localTime = null;
-    try {
-      const response = await fetch(chrome.runtime.getURL('config/siteHandlers.json'));
-      const localConfig = await response.json();
-      if (localConfig.lastUpdated) {
-        localTime = new Date(localConfig.lastUpdated);
-        console.log('本地配置文件时间:', localTime);
-      }
-    } catch (error) {
-      console.error('读取本地配置文件失败:', error);
-    }
-    
-    // 比较两个时间，取较大值
-    let latestTime = null;
-    if (storageTime && localTime) {
-      latestTime = storageTime > localTime ? storageTime : localTime;
-      console.log('取较大时间:', latestTime);
-    } else if (storageTime) {
-      latestTime = storageTime;
-      console.log('使用存储时间:', latestTime);
-    } else if (localTime) {
-      latestTime = localTime;
-      console.log('使用本地时间:', latestTime);
-    }
-    
-    // 格式化显示
-    if (latestTime) {
-      const year = latestTime.getFullYear();
-      const month = String(latestTime.getMonth() + 1).padStart(2, '0');
-      const day = String(latestTime.getDate()).padStart(2, '0');
-      const hours = String(latestTime.getHours()).padStart(2, '0');
-      const minutes = String(latestTime.getMinutes()).padStart(2, '0');
-      const seconds = String(latestTime.getSeconds()).padStart(2, '0');
-      timeDisplay = `${chrome.i18n.getMessage('ruleUpdateTimePrefix')}${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-    } else {
-      timeDisplay = chrome.i18n.getMessage('ruleUpdateTimeNotAvailable');
-    }
-    
-    // 更新显示
-    const timeElement = document.getElementById('ruleUpdateTime');
-    if (timeElement) {
-      timeElement.textContent = timeDisplay;
-    }
-    
-    // 添加参与规则开发按钮的点击事件
-    const devButton = document.getElementById('participateRuleDev');
-    if (devButton) {
-      devButton.addEventListener('click', () => {
-        chrome.tabs.create({
-          url: 'https://github.com/ai-group-chat/ai-group-chat/blob/main/config/siteHandlers.json'
-        });
-      });
-    }
-    
-  } catch (error) {
-    console.error('初始化规则信息失败:', error);
-    
-    // 显示错误信息
-    const timeElement = document.getElementById('ruleUpdateTime');
-    if (timeElement) {
-      timeElement.textContent = chrome.i18n.getMessage('ruleUpdateTimeError');
-    }
-  }
-}
+
 
 
 // ============================
@@ -643,6 +559,141 @@ async function updateTemplateOrder() {
   }
 }
 
+// 初始化总结设置
+async function initializeSummarySettings() {
+  const summaryApiUrl = document.getElementById('summaryApiUrl');
+  const summaryApiKey = document.getElementById('summaryApiKey');
+  const summaryApiModel = document.getElementById('summaryApiModel');
+  const summaryApiPrompt = document.getElementById('summaryApiPrompt');
+  const saveBtn = document.getElementById('saveSummarySettings');
+
+  if (!summaryApiUrl || !summaryApiKey || !summaryApiModel || !summaryApiPrompt || !saveBtn) {
+    console.error('未找到总结设置相关 DOM 元素');
+    return;
+  }
+
+  // 从 sync 存储加载设置
+  try {
+    const config = await chrome.storage.sync.get([
+      'summaryApiUrl',
+      'summaryApiKey',
+      'summaryApiModel',
+      'summaryApiPrompt'
+    ]);
+
+    if (config.summaryApiUrl) summaryApiUrl.value = config.summaryApiUrl;
+    if (config.summaryApiKey) summaryApiKey.value = config.summaryApiKey;
+    if (config.summaryApiModel) summaryApiModel.value = config.summaryApiModel;
+    
+    if (config.summaryApiPrompt) {
+      summaryApiPrompt.value = config.summaryApiPrompt;
+    } else {
+      summaryApiPrompt.value = "你是一个优秀的AI总结和对比助手。请总结以下所有 AI 的回答要点，对比它们的分歧与共识，提取出核心结论，并输出一份精美的 Markdown 报告。";
+    }
+  } catch (error) {
+    console.error('加载总结设置失败:', error);
+  }
+
+  // 绑定保存事件
+  saveBtn.addEventListener('click', async () => {
+    const url = summaryApiUrl.value.trim();
+    const key = summaryApiKey.value.trim();
+    const model = summaryApiModel.value.trim();
+    const prompt = summaryApiPrompt.value.trim();
+
+    try {
+      await chrome.storage.sync.set({
+        summaryApiUrl: url,
+        summaryApiKey: key,
+        summaryApiModel: model,
+        summaryApiPrompt: prompt
+      });
+      showToast(getMessage('summarySettingsSaved') || '总结配置已保存');
+    } catch (error) {
+      console.error('保存总结设置失败:', error);
+      showToast('保存失败: ' + error.message);
+    }
+  });
+
+  // 绑定测试连接事件
+  const testBtn = document.getElementById('testSummarySettings');
+  const testResultSpan = document.getElementById('testSummaryApiResult');
+
+  if (testBtn && testResultSpan) {
+    testBtn.addEventListener('click', async () => {
+      const url = summaryApiUrl.value.trim();
+      const key = summaryApiKey.value.trim();
+      const model = summaryApiModel.value.trim();
+
+      if (!url || !key || !model) {
+        testResultSpan.textContent = "⚠️ 请先填写完整配置";
+        testResultSpan.style.color = "#e67e22";
+        testResultSpan.style.display = "inline";
+        return;
+      }
+
+      // 显示测试中
+      testResultSpan.textContent = getMessage('summaryApiTesting') || '测试中...';
+      testResultSpan.style.color = '#e67e22';
+      testResultSpan.style.display = 'inline';
+      testBtn.disabled = true;
+
+      try {
+        let cleanUrl = url;
+        if (!cleanUrl.endsWith('/chat/completions')) {
+          cleanUrl = cleanUrl.replace(/\/$/, '') + '/chat/completions';
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 秒超时
+
+        const response = await fetch(cleanUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [{ role: 'user', content: 'Ping' }],
+            max_tokens: 5
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          testResultSpan.textContent = getMessage('summaryApiTestSuccess') || '✅ 连接成功';
+          testResultSpan.style.color = '#00a240';
+        } else {
+          const errorText = await response.text();
+          let parsedMsg = '';
+          try {
+            const errJson = JSON.parse(errorText);
+            parsedMsg = errJson.error?.message || errJson.message || errorText;
+          } catch (e) {
+            parsedMsg = errorText || response.statusText;
+          }
+          // 截取错误信息的前50个字符
+          const cleanMsg = parsedMsg.substring(0, 50) + (parsedMsg.length > 50 ? '...' : '');
+          testResultSpan.textContent = (getMessage('summaryApiTestError') || '❌ 连接失败: ') + `${response.status} (${cleanMsg})`;
+          testResultSpan.style.color = '#c0392b';
+        }
+      } catch (error) {
+        let errorMsg = error.message;
+        if (error.name === 'AbortError') {
+          errorMsg = '请求超时 (10s)';
+        }
+        testResultSpan.textContent = (getMessage('summaryApiTestError') || '❌ 连接失败: ') + errorMsg;
+        testResultSpan.style.color = '#c0392b';
+      } finally {
+        testBtn.disabled = false;
+      }
+    });
+  }
+}
+
 // ===== Tab 导航：hash 跳转 & 初始化 =====
 
 // 存储 switchTab 引用，供 hash 变化时调用
@@ -656,14 +707,60 @@ function handleHashNavigation() {
   }
 }
 
+// 初始化 Tab 切换
+function initializeTabs() {
+  const tabLinks = document.querySelectorAll('.tab-link');
+  const tabContents = document.querySelectorAll('.tab-content');
+
+  const switchTab = (targetTabId) => {
+    // 切换 tab-link 激活状态
+    tabLinks.forEach(link => {
+      if (link.getAttribute('data-tab') === targetTabId) {
+        link.classList.add('active');
+      } else {
+        link.classList.remove('active');
+      }
+    });
+
+    // 切换 tab-content 显示状态
+    tabContents.forEach(content => {
+      if (content.id === targetTabId) {
+        content.classList.add('active');
+      } else {
+        content.classList.remove('active');
+      }
+    });
+  };
+
+  tabLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      const targetTabId = link.getAttribute('data-tab');
+      switchTab(targetTabId);
+      window.location.hash = targetTabId;
+    });
+  });
+
+  // 保存切换函数引用，供外部/全局 hashchange 事件调用
+  tabSwitchFunction = switchTab;
+
+  // 监听 hash 改变
+  window.addEventListener('hashchange', handleHashNavigation);
+
+  // 初始化默认显示 (如果 hash 存在则显示对应 tab，否则默认第一个)
+  const hash = window.location.hash;
+  if (hash) {
+    handleHashNavigation();
+  } else {
+    switchTab('prompt-templates');
+  }
+}
+
 // 页面初始化
 document.addEventListener('DOMContentLoaded', () => {
   console.log('Options page loaded');
   
   initializeI18n();
-  initializeRuleInfo();
   initializePromptTemplates();
+  initializeSummarySettings();
+  initializeTabs();
 });
-
-// 确保禁用网站初始化在 loadConfig 完成后调用
-// （loadConfig 中已处理 initializeSiteConfigs）

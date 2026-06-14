@@ -1,15 +1,8 @@
 {
-  "defaultFavoriteSites": [
-    {
-      "name": "Google"
-    }
-  ],
   "defaultModes": {
     "iframe": false
   },
   "buttonConfig": {
-    "floatButton": false,
-    "selectionSearch": true,
     "contextMenu": true,
     "searchEngine": true
   },

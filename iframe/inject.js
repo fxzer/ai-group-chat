@@ -1,7 +1,8 @@
-// 控制调试日志输出，生产模式下屏蔽普通的 console.log 以优化性能
+// 控制调试日志输出，生产模式下屏蔽普通的 console.log 和 console.warn 以优化性能
 const DEBUG_MODE = false;
 if (!DEBUG_MODE) {
   console.log = function() {};
+  console.warn = function() {};
 }
 
 console.log('🎯 inject.js 脚本已加载');
@@ -2428,3 +2429,25 @@ function convertHtmlToMarkdown(html) {
         return tempDiv.textContent || tempDiv.innerText || '';
     }
 }
+
+// 双击 Alt/Option 唤起父窗口输入弹窗
+(function() {
+    let lastAltPressTime = 0;
+    window.addEventListener('keydown', function(e) {
+        if (e.key === 'Alt') {
+            const currentTime = Date.now();
+            if (currentTime - lastAltPressTime < 300) {
+                // 双击 Alt/Option 成功，向父窗口发送 message
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'TOGGLE_INPUT_DRAWER',
+                        source: 'inject-script'
+                    }, '*');
+                }
+                lastAltPressTime = 0;
+            } else {
+                lastAltPressTime = currentTime;
+            }
+        }
+    });
+})();

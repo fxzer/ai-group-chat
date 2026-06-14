@@ -226,6 +226,7 @@ async function openHistoryItem(item) {
         if (siteNames.length > 0) {
             params.set('sites', siteNames.join(','));
         }
+        params.set('historyId', item.id);
 
         const iframeUrl = chrome.runtime.getURL(`iframe/iframe.html?${params.toString()}`);
 
@@ -233,25 +234,6 @@ async function openHistoryItem(item) {
             url: iframeUrl,
             active: true
         });
-
-        setTimeout(async () => {
-            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tabs.length > 0) {
-                const currentTab = tabs[0];
-                if (currentTab.url && currentTab.url.includes('iframe.html')) {
-                    try {
-                        await chrome.tabs.sendMessage(currentTab.id, {
-                            type: 'loadHistoryIframes',
-                            sites: item.sites,
-                            historyId: item.id
-                        });
-                    } catch (error) {
-                        console.error('Failed to send message:', error);
-                    }
-                }
-            }
-        }, 1000);
-
     } catch (error) {
         console.error('Failed to open history item:', error);
         alert(getMessage('openHistoryFailed') || 'Failed to open history, please try again');

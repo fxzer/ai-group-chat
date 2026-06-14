@@ -77,12 +77,6 @@ function showExportModal() {
         <button class="export-close-btn" id="exportCloseBtn">×</button>
       </div>
       
-        <div class="export-dev-notice">
-          <div class="export-dev-notice-content">
-            ⚠️ ${getI18nMessage('devNotice', '功能在开发中，可能会有错误或不足')}
-          </div>
-        </div>
-      
       <div class="export-options">
         <div class="export-option-group">
           <label class="export-option-label">${getI18nMessage('exportFormat', '导出格式')}</label>
@@ -251,26 +245,57 @@ function initializeExportModal(modal) {
 }
 
 // 加载导出站点列表
-function loadExportSites(container, modal) {
+async function loadExportSites(container, modal) {
   const iframes = document.querySelectorAll('.ai-iframe');
   const selectedSites = new Set();
-  
+
+  let sites = [];
+  try {
+    if (window.siteDetector) {
+      sites = await window.siteDetector.getSites();
+    } else if (typeof window.getDefaultSites === 'function') {
+      sites = await window.getDefaultSites();
+    }
+  } catch (error) {
+    console.error('加载站点图标配置失败:', error);
+  }
+
   iframes.forEach(iframe => {
     const siteName = iframe.getAttribute('data-site');
     if (!siteName) return;
-    
+
+    const site = sites.find(s => s.name === siteName);
+    const iconPath = site ? (site.icon || 'ai/other.svg') : 'ai/other.svg';
+
     const siteItem = document.createElement('div');
     siteItem.className = 'export-site-item';
-    siteItem.innerHTML = `
-      <input type="checkbox" class="export-site-checkbox" id="site-${siteName}" checked>
-      <label class="export-site-name" for="site-${siteName}">${siteName}</label>
-    `;
-    
-    // 添加到选中列表
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'export-site-checkbox';
+    checkbox.id = `site-${siteName}`;
+    checkbox.checked = true;
+
+    const siteIcon = document.createElement('img');
+    siteIcon.className = 'export-site-icon';
+    siteIcon.src = chrome.runtime.getURL('icons/' + iconPath);
+    siteIcon.alt = '';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'export-site-name-text';
+    nameSpan.textContent = siteName;
+
+    const infoGroup = document.createElement('label');
+    infoGroup.className = 'export-site-info';
+    infoGroup.htmlFor = `site-${siteName}`;
+    infoGroup.appendChild(siteIcon);
+    infoGroup.appendChild(nameSpan);
+
+    siteItem.appendChild(infoGroup);
+    siteItem.appendChild(checkbox);
+
     selectedSites.add(siteName);
-    
-    // 添加选择事件
-    const checkbox = siteItem.querySelector('.export-site-checkbox');
+
     checkbox.addEventListener('change', (e) => {
       console.log(`站点 ${siteName} 选择状态改变:`, e.target.checked);
       

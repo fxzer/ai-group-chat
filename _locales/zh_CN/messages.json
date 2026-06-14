@@ -3,7 +3,7 @@
     "message": "AI Group Chat"
   },
   "appName": {
-    "message": "AI Group Chat - 一键对比 ChatGPT, Gemini, Grok 等多个AI"
+    "message": "AI Group Chat | 一键对比 ChatGPT, Gemini, Grok 等多个AI"
   },
   "extDescription": {
     "message": "AI Group Chat 帮你从十多个AI中快速找到最佳答案。"
@@ -23,7 +23,7 @@
     }
   },
   "inputPlaceholder": {
-    "message": "输入要搜索的内容"
+    "message": "输入要搜索的内容，Shift+Enter 换行，Enter 发送"
   },
   "openSettings": {
     "message": "默认AI对比配置"
@@ -79,14 +79,7 @@
     "message": "快捷入口配置",
     "description": "入口配置标题"
   },
-  "floatButton": {
-    "message": "悬浮球",
-    "description": "悬浮按钮的名称"
-  },
-  "selectionSearch": {
-    "message": "划词搜索",
-    "description": "划词搜索的名称"
-  },
+
   "contextMenu": {
     "message": "右键菜单",
     "description": "右键菜单的名称"
@@ -99,22 +92,7 @@
     "message": "确定要删除这个提示词吗？",
     "description": "删除提示词的确认消息"
   },
-  "ruleUpdateTimePrefix": {
-    "message": "规则远程自动更新时间：",
-    "description": "规则更新时间的前缀文本"
-  },
-  "ruleUpdateTimeNotAvailable": {
-    "message": "规则远程自动更新时间：未获取到",
-    "description": "无法获取规则更新时间时显示的消息"
-  },
-  "ruleUpdateTimeError": {
-    "message": "规则远程自动更新时间：获取失败",
-    "description": "获取规则更新时间失败时显示的消息"
-  },
-  "participateRuleDev": {
-    "message": "参与规则开发",
-    "description": "参与规则开发按钮的文本"
-  },
+
   "recentUpdateRecords": {
     "message": "最近更新记录"
   },
@@ -154,12 +132,7 @@
   "unknownTime": {
     "message": "未知时间"
   },
-  "disabledSitesTitle": {
-    "message": "悬浮球禁用网站"
-  },
-  "disabledSitesDescription": {
-    "message": "管理悬浮球被禁用的网站，您可以在这里重新启用悬浮球"
-  },
+
   "searchProviderName": {
     "message": "AI Group Chat"
   },
@@ -321,9 +294,6 @@
   "contentExtractionFailed": {
     "message": "内容提取失败"
   },
-  "devNotice": {
-    "message": "功能在开发中，可能会有错误或不足"
-  },
   "pinGuideTitle": {
     "message": "将扩展固定到工具栏，方便快速访问"
   },
@@ -344,5 +314,65 @@
   },
   "noSitesSelected": {
     "message": "请至少选择一个站点"
+  },
+  "summaryToggleBtnTitle": {
+    "message": "总结回答"
+  },
+  "summaryModalTitle": {
+    "message": "🤖 AI 智能总结"
+  },
+  "summarySettingsTitle": {
+    "message": "AI 总结设置"
+  },
+  "summaryApiUrlLabel": {
+    "message": "API 接口地址"
+  },
+  "summaryApiKeyLabel": {
+    "message": "API Key"
+  },
+  "summaryApiModelLabel": {
+    "message": "API 模型名称"
+  },
+  "summaryApiPromptLabel": {
+    "message": "系统提示词"
+  },
+  "summarySettingsSaved": {
+    "message": "总结配置已保存"
+  },
+  "summaryNoConfig": {
+    "message": "⚠️ 您尚未配置 AI 总结接口。请前往插件设置页面配置 API 参数。"
+  },
+  "summaryGoToSettings": {
+    "message": "前往设置"
+  },
+  "summaryGenerating": {
+    "message": "正在提取网页内容并生成 AI 总结中，请稍候..."
+  },
+  "summaryGeneratingToast": {
+    "message": "智能总结正在后台生成，生成完毕后会有绿点提示，请稍候..."
+  },
+  "summaryCopy": {
+    "message": "📋 复制总结"
+  },
+  "summaryExport": {
+    "message": "💾 导出 Markdown"
+  },
+  "summaryRegenerate": {
+    "message": "🔄 重新总结"
+  },
+  "summaryCopied": {
+    "message": "已复制到剪贴板"
+  },
+  "summaryApiTestBtn": {
+    "message": "测试连接"
+  },
+  "summaryApiTesting": {
+    "message": "测试中..."
+  },
+  "summaryApiTestSuccess": {
+    "message": "✅ 连接成功"
+  },
+  "summaryApiTestError": {
+    "message": "❌ 连接失败: "
   }
 } 

@@ -3,6 +3,15 @@
  * 提供高性能、准确的站点识别功能
  */
 
+const _originalConsole = (typeof globalThis !== 'undefined' && globalThis['console']) || 
+                         (typeof self !== 'undefined' && self['console']);
+const SITE_DETECTOR_DEBUG = false;
+const console = {
+  log: (...args) => { if (SITE_DETECTOR_DEBUG) _originalConsole.log(...args); },
+  warn: (...args) => { if (SITE_DETECTOR_DEBUG) _originalConsole.warn(...args); },
+  error: (...args) => { _originalConsole.error(...args); }
+};
+
 class SiteDetector {
   constructor() {
     this.sitesCache = null;

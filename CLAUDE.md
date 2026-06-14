@@ -8,7 +8,7 @@ AI Group Chat is a Chrome browser extension that enhances AI website usage effic
 
 1. Access multiple AI websites in one tab using iframes
 2. Send queries to multiple AI sites simultaneously for comparison
-3. Use floating buttons and text selection shortcuts to query AI sites
+3. Use right-click context menus and omnibox keywords to query AI sites
 4. Configure preferred AI sites and customize the interface
 
 ## Architecture

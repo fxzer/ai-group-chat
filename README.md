@@ -24,78 +24,43 @@
 - **Query suggestions**: Prompt templates appear as buttons above the input; one click fills the query (e.g. `风险分析：「{query}」`). On `homepage` and `iframe`, suggestions are filtered by the currently selected site type.
 - **Launch URLs**: Official sites can use a custom `entryUrl` so the homepage, iframe comparison page, and external shortcuts open a saved session URL instead of the root page. Use `{query}` when the URL should include the search text.
 - **Custom sites**: Add standalone sites that only open the page. They do not inject prompts or run automation, and can optionally carry a note tooltip plus an icon filename for iframe navigation.
-- **Favorite query**: Star the current query to save it to Favorites.
 - **Site selection**: Choose which AI sites to load and save as default (collection mode settings).
 
 #### 2. Side panel / Homepage
 
 - **Open**: Click the extension icon or press **⌘+M** (Mac) / **Ctrl+M** (Windows).
 - **Search & compare**: Type a query, select AI sites, click PK to open the multi-AI comparison page (iframe-capable sites only).
-- **Save favorite sites**: Select sites and save as “favorite sites” for quick access.
+- **Save favorite sites**: Select sites and save as default selection for quick access.
 - **Pin guide**: Optional reminder to pin the extension to the toolbar for faster access.
-- **Shortcuts**: Links to Settings, History, Favorites, Feedback. Optional file upload button.
+- **Shortcuts**: Links to Settings, History, Feedback. Optional file upload button.
 
-#### 3. Floating ball (optional)
-
-- **Where**: Shown on web pages when enabled in settings (default: off).
-- **Action**: Click to open the side panel; drag to move.
-- **Close**: Close button offers: close for now, disable on current site only, or disable globally.
-- **Extra**: Small icons for Settings and Feedback.
-
-#### 4. Selection toolbar (optional)
-
-- **Trigger**: Select text on any page; a toolbar appears near the selection.
-- **Favorite site**: One click sends the selected text to your saved “favorite” AI site (single site).
-- **Site list**: Dropdown to pick another AI site for this query.
-- **PK**: Send selected text to the multi-AI comparison page (iframe-capable sites only).  
-  Can be turned off in Options.
-
-#### 5. Search engine toolbar (optional)
-
-- **Where**: Google, Baidu, Bing (and cn.bing.com).
-- **What**: A small toolbar next to the search box with:
-  - **Favorite site**: Run current search query on your favorite AI site (single site).
-  - **Site list**: Choose another AI site.
-  - **PK**: Open multi-AI comparison with the current search query (iframe-capable sites only).  
-  Can be turned off in Options.
-
-#### 6. Site button on AI pages (optional)
+#### 3. Site button on AI pages (optional)
 
 - **Where**: On supported AI chat pages (e.g. ChatGPT, Claude, Gemini, Kimi) — from `siteHandlers.json` with iframe support.
 - **What**: A small extension icon next to the send button.
 - **Action**: Click to read the current input, open the multi-AI comparison page with that text as the query (iframe-capable sites only).  
   Can be turned off in config.
 
-#### 7. Context menu
+#### 4. Context menu
 
-- **On extension icon (right‑click)**: Options, History, Favorites.
-- **On selected text (right‑click)**: “Search with AI Compare” to query multiple AIs (iframe-capable sites only, if “Context Menu” is enabled in Options).
+- **On selected text (right‑click)**: “Search with AI Compare” to query multiple AIs (iframe-capable sites only, if enabled).
 
-#### 8. Omnibox (address bar)
+#### 5. Omnibox (address bar)
 
 - **Keyword**: Type `ai` in the address bar, then space and your query (e.g. `ai 什么是机器学习`).
 - **Action**: Opens the multi-AI comparison page with that query (current tab or new tab by how you open it).
 
-#### 9. Options page
+#### 6. Options page
 
-- **Quick entry settings**: Toggle on/off: Floating ball, Selection search, Context menu, Search engine toolbar (defaults from `appConfig.json`). Changes apply to already open tabs immediately.
-- **Launch settings**: Customize official site entry URLs and manage standalone custom sites.
-- **Agent settings**: Override each built-in skill's display name, description, and persona prompt.
-- **API settings**: Configure the shared skill engine used by the built-in skills.
-- **Sidebar subpages**: Each settings group opens as its own subpage in the right panel instead of one long scroll page.
-- **Disabled sites**: List of sites where the floating ball is disabled; re-enable from here.
-- **Cloud sync**: Use WebDAV or Google Drive to sync settings across devices.
-- **Prompt templates**: Add / edit / delete templates (name, query text with `{query}`, type, display order). Template type uses the same candidate set as site config types.
-- **Local backup**: Export the current sync data to a JSON file and restore it later without including cloud credentials. History records in backups are capped at the first 500 items.
-- **Links**: Open History page, Favorites page.
+- **Prompt templates**: Add / edit / delete templates (name, query text with `{query}`, display order).
+- **AI Summary Settings**: Configure the API credentials (endpoint URL, API key, model name, and system persona prompt) used to summarize responses.
 
-#### 10. History & Favorites pages
+#### 7. History page
 
-- **History**: Full list of past comparison sessions; search and open again; clear history.
-- **Favorites**: Saved queries/sessions; search and open again; clear all.
+- **History**: Full list of past comparison sessions; search, filter, and restore historic sessions; delete individual items or clear history.
 - **Hybrid timeline**: Mixed site + skill sessions now keep skill user turns in the compare timeline too, so reopening hybrid history can still identify each skill dialogue round for scroll/copy preview.
 
-#### 11. Remote Search v1
+#### 8. Remote Search v1
 
 - **Phone -> desktop search**: Pair one phone to one Chrome session by QR code, then start comparison searches remotely from the phone.
 - **Desktop-controlled site list**: The mobile app never picks sites in v1. It always uses the extension’s current enabled iframe-capable sites.
@@ -229,7 +194,6 @@ This project is licensed under the [GNU General Public License v3.0](https://www
 - **查询建议**：输入框上方展示提示词模板按钮，点击即可填入（如「风险分析：「{query}」」）。在 `homepage` 和 `iframe` 中，联想模板会按当前选择的站点类型过滤。
 - **启动网址**：官方站点可以单独配置 `entryUrl`，让主页、iframe 对比页和外部快捷入口直接打开已存在的会话 URL，而不是始终回到根页面。URL 需要带查询词时可使用 `{query}`。
 - **自定义网站**：可添加只负责打开页面的独立网站，不做提示词注入或自动化操作，还可以附带备注和图标文件名，方便在主页和 iframe 导航中识别。
-- **收藏当前问题**：可将当前问题加星，保存到收藏记录。
 - **站点选择**：选择要加载的 AI 站点，并保存为合集模式默认。
 
 #### 2. 侧边栏 / 主页
@@ -238,65 +202,34 @@ This project is licensed under the [GNU General Public License v3.0](https://www
 - **搜索与对比**：输入问题、勾选 AI 站点，点击 PK 打开多 AI 对比页（仅加载支持 iframe 的站点）。
 - **保存常用站点**：勾选站点后可保存为「常用站点」，下次一键使用。
 - **固定引导**：可选提示用户将扩展固定到工具栏，方便打开。
-- **入口**：设置、历史记录、收藏记录、用户反馈；可选文件上传按钮。
+- **入口**：设置、历史记录、用户反馈；可选文件上传按钮。
 
-#### 3. 悬浮球（可选）
-
-- **出现位置**：在设置中开启后，在网页上显示（默认关闭）。
-- **点击**：打开侧边栏；可拖动位置。
-- **关闭**：关闭时可选「本次关闭」「当前网站禁用」「永久禁用」。
-- **子入口**：设置、反馈。
-
-#### 4. 划词工具栏（可选）
-
-- **触发**：在任意网页选中文字后，选区旁出现工具栏。
-- **常用站点**：一键将选中内容发送到已保存的「常用」AI 站点（单站点）。
-- **站点列表**：下拉选择其他 AI 站点发送。
-- **PK**：将选中内容带到多 AI 对比页（仅加载支持 iframe 的站点），多站点同时查询。  
-  可在选项中关闭。
-
-#### 5. 搜索引擎工具栏（可选）
-
-- **出现位置**：Google、百度、Bing（及 cn.bing.com）搜索框旁。
-- **内容**：常用站点按钮、站点下拉、PK 按钮（用当前搜索词做多 AI 对比，仅加载支持 iframe 的站点）。  
-  可在选项中关闭。
-
-#### 6. AI 站点内按钮（可选）
+#### 3. AI 站点内按钮（可选）
 
 - **出现位置**：在已配置的 AI 对话页（如 ChatGPT、Claude、Gemini、Kimi 等，见 `siteHandlers.json` 且支持 iframe 的站点）。
 - **形式**：发送按钮旁的扩展小图标。
 - **作用**：点击后读取当前输入框内容，用该内容打开多 AI 对比页进行查询（仅加载支持 iframe 的站点）。  
   可在配置中关闭。
 
-#### 7. 右键菜单
+#### 4. 右键菜单
 
-- **扩展图标右键**：选项、历史记录、收藏记录。
-- **选中文字右键**：出现「使用 AI 比一比搜索」，可多站点查询（仅加载支持 iframe 的站点，需在选项中开启「右键菜单」）。
+- **选中文字右键**：出现「使用 AI 比一比搜索」，可多站点查询（仅加载支持 iframe 的站点，需开启「右键菜单」）。
 
-#### 8. 地址栏 Omnibox
+#### 5. 地址栏 Omnibox
 
 - **关键字**：在地址栏输入 `ai` 加空格，再输入问题（如 `ai 什么是机器学习`）。
 - **行为**：用该问题打开多 AI 对比页（当前标签或新标签取决于打开方式）。
 
-#### 9. 选项页
+#### 6. 选项页
 
-- **快捷入口设置**：开关 悬浮球、划词搜索、AI 站内按钮、右键菜单、搜索引擎 是否启用（默认来自 `appConfig.json`）。已打开的页面会立即同步开关状态，无需刷新。
-- **启动网址设置**：可配置官方站点入口 URL，并管理独立的自定义网站。
-- **智能体设置**：按 Skill 覆盖显示名称、简介和 persona 提示词。
-- **API 设置**：配置内置 Skill 共用的引擎参数。
-- **侧边栏子页面**：每个设置分组会在右侧作为独立子页面打开，不再堆成一个长滚动页。
-- **悬浮球禁用网站**：查看/管理「在此站禁用悬浮球」的列表，可在此重新启用。
-- **云同步**：使用 WebDAV 或 Google Drive 在不同设备之间同步设置。
-- **提示词模板**：增删改模板（名称、带 `{query}` 的查询模板、类型、排序）。模板类型与站点配置里的 `type` 候选项保持一致。
-- **本地备份**：可将当前同步数据导出为 JSON 文件并随后恢复，且不会包含云端凭据。备份中的历史记录最多保留前 500 条。
-- **入口**：历史记录页、收藏记录页。
+- **提示词模板**：增删改模板（名称、带 `{query}` 的查询模板、排序）。
+- **AI 总结设置**：配置内置的 AI 总结 API 参数（接口地址、API Key、模型名称、系统提示词）。
 
-#### 10. 历史记录与收藏记录页
+#### 7. 历史记录页
 
-- **历史记录**：全部对比历史，支持搜索、再次打开、清空。
-- **收藏记录**：收藏的问题/会话，支持搜索、再次打开、清空。
+- **历史记录**：全部对比历史，支持搜索、再次打开或清空。
 
-#### 11. 远程搜索 v1
+#### 8. 远程搜索 v1
 
 - **手机发起、电脑执行**：通过二维码把一台手机绑定到一个 Chrome 会话后，手机就可以远程发起 AI Compare 搜索。
 - **站点选择仍由桌面端决定**：v1 中手机端不会选择站点，只会沿用扩展当前启用且支持 iframe 的站点集合。
