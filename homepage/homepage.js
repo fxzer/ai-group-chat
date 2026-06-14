@@ -213,28 +213,26 @@ async function showQuerySuggestions(query) {
             querySuggestions.appendChild(suggestionItem);
         });
         
-        // 添加设置图标到 querySuggestions 区域
-        const settingsIcon = document.createElement('img');
-        settingsIcon.src = '../icons/edit.png';
-        settingsIcon.alt = '设置模板';
-        settingsIcon.title = '编辑提示词模板';
-        settingsIcon.classList.add('query-suggestion-settings-icon');
-        settingsIcon.style.cursor = 'pointer';
-        settingsIcon.style.width = '20px';
-        settingsIcon.style.height = '20px';
-        settingsIcon.style.marginLeft = '8px';
-        settingsIcon.style.verticalAlign = 'middle';
-
-        // 点击后在新标签页打开设置页面并跳转到模板编辑区域
-        settingsIcon.addEventListener('click', (e) => {
+        // 更多操作按钮（编辑提示词模板）
+        const moreBtn = document.createElement('button');
+        moreBtn.type = 'button';
+        moreBtn.className = 'query-suggestion-item query-suggestion-more-btn';
+        moreBtn.title = chrome.i18n.getMessage('editTemplateTitle') || '编辑提示词模板';
+        moreBtn.setAttribute('aria-label', moreBtn.title);
+        moreBtn.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <circle cx="5" cy="12" r="2"/>
+                <circle cx="12" cy="12" r="2"/>
+                <circle cx="19" cy="12" r="2"/>
+            </svg>
+        `;
+        moreBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             // 埋点：从首页提示词建议区域打开模板设置
             trackEvent('homepage_prompt_templates_settings_click');
             window.open(chrome.runtime.getURL('options/options.html#prompt-templates'), '_blank');
         });
-
-        // 将设置图标添加到 querySuggestions 区域
-        querySuggestions.appendChild(settingsIcon);
+        querySuggestions.appendChild(moreBtn);
 
         // 显示建议
         querySuggestions.style.display = 'flex';

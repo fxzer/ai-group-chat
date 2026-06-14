@@ -939,7 +939,7 @@ body.has-live-summary-drawer-open #liveSummaryDrawerToggle {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 20px 8px;
+    padding: 12px 20px 8px;
     flex-shrink: 0;
 }
 
@@ -1014,13 +1014,11 @@ body.has-live-summary-drawer-open #liveSummaryDrawerToggle {
     flex: 1;
     padding: 0 20px;
     overflow-y: auto;
-    min-height: 120px;
 }
 
 .drawer-textarea {
     width: 100%;
-    min-height: 120px;
-    max-height: 45vh;
+    height: 200px;
     padding: 12px;
     border: 1px solid #e0e0e0;
     border-radius: 12px;
@@ -1030,6 +1028,7 @@ body.has-live-summary-drawer-open #liveSummaryDrawerToggle {
     resize: none;
     outline: none;
     background: #f8f9fa;
+    overflow-y: auto;
     transition: border-color 0.15s, background 0.15s;
     box-sizing: border-box;
 }
@@ -1048,7 +1047,7 @@ body.has-live-summary-drawer-open #liveSummaryDrawerToggle {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 12px 20px 20px;
+    padding: 12px 20px;
     flex-shrink: 0;
 }
 
@@ -1433,16 +1432,15 @@ body.has-live-summary-drawer-open #liveSummaryDrawerToggle {
     color: white;
 }
 
-.query-suggestion-settings-icon {
-    flex-shrink: 0;
-    cursor: pointer;
-    width: 16px;
-    height: 16px;
-    opacity: 0.4;
-    transition: opacity 0.15s;
-    margin-left: 4px;
+button.query-suggestion-more-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    font-family: inherit;
+    line-height: 1;
 }
 
-.query-suggestion-settings-icon:hover {
-    opacity: 1;
+button.query-suggestion-more-btn svg {
+    display: block;
 }

@@ -40,9 +40,6 @@
   "commandDescription": {
     "message": "快捷键(Mac下 ⌘+M , Windows下 Ctrl+M)"
   },
-  "contactInfo": {
-    "message": "如果你想增加更多站点，可以与我联系 AIShortcuts@outlook.com"
-  },
   "popupTitle": {
     "message": "AI Group Chat"
   },
@@ -172,11 +169,8 @@
   "promptTemplatesTitle": {
     "message": "提示词模板管理"
   },
-  "promptTemplatesDescription": {
-    "message": "自定义搜索建议按钮的提示词模板"
-  },
   "addTemplateButton": {
-    "message": "添加新模板"
+    "message": "添加"
   },
   "addTemplateTitle": {
     "message": "添加提示词模板"
@@ -195,6 +189,12 @@
   },
   "templateQueryHelp": {
     "message": "使用 {query} 作为用户输入的占位符"
+  },
+  "templateNamePlaceholder": {
+    "message": "模板名称 (例如：精简卡片)"
+  },
+  "templateQueryPlaceholder": {
+    "message": "查询模板 (支持多行，必须包含 {query} 作为输入占位符。例如：\n帮我精简以下文案做成简洁卡片：\n{query})"
   },
   "templateOrderLabel": {
     "message": "显示顺序"
@@ -255,6 +255,30 @@
   },
   "historyTitle": {
     "message": "历史记录"
+  },
+  "clearHistoryButton": {
+    "message": "清空历史"
+  },
+  "historySearchPlaceholder": {
+    "message": "搜索关键词或站点..."
+  },
+  "noHistoryRecord": {
+    "message": "暂无历史记录"
+  },
+  "noResultsFound": {
+    "message": "未找到结果"
+  },
+  "tryDifferentKeywords": {
+    "message": "试试其他关键词"
+  },
+  "confirmClearHistory": {
+    "message": "确定要清空所有历史记录吗？"
+  },
+  "confirmDeleteHistory": {
+    "message": "确定要删除这条历史记录吗？"
+  },
+  "openHistoryFailed": {
+    "message": "打开历史记录失败，请重试"
   },
   "historyMaxRecordsTip": {
     "message": "只保存最近的$COUNT$条记录",

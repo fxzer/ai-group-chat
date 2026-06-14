@@ -1,0 +1,41 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editor / IDE
+*.code-workspace
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Chrome extension (generated / packaged)
+_metadata/
+*.crx
+*.pem
+*.zip
+
+# Local dev / debug tools (not shipped to users)
+debug/
+
+# Local AI / agent config
+.claude/
+
+# Environment & secrets
+.env
+.env.*
+
+# Dependencies (if added later)
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*

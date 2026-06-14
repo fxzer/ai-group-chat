@@ -2,31 +2,45 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>History</title>
+    <title data-i18n="historyTitle">History</title>
     <link rel="stylesheet" href="history.css">
 </head>
 <body>
-    <div class="history-container">
-        <div class="history-header">
-            <h1>History</h1>
-            <button id="clearHistoryBtn" class="clear-btn">Clear History</button>
-        </div>
-        <div class="search-container">
-            <input type="text" id="searchInput" class="search-input" placeholder="Search by query ...">
-        </div>
-        <div id="historyList" class="history-list">
-            <!-- 历史记录将动态加载到这里 -->
-        </div>
-        <div id="emptyState" class="empty-state" style="display: none;">
-            <div class="empty-icon">📋</div>
-            <div class="empty-text">No history record</div>
-        </div>
-        <div id="noResultsState" class="empty-state" style="display: none;">
-            <div class="empty-icon">🔍</div>
-            <div class="empty-text">No results found</div>
-            <div class="empty-hint">Try different keywords</div>
-        </div>
+    <div class="page-layout">
+        <main class="main-content">
+            <div class="container">
+                <div class="history-header">
+                    <div class="history-header-text">
+                        <h1 data-i18n="historyTitle">History</h1>
+                        <p id="historyMaxTip" class="history-tip"></p>
+                    </div>
+                    <button id="clearHistoryBtn" class="clear-history-btn" data-i18n="clearHistoryButton">Clear History</button>
+                </div>
+
+                <div class="search-container">
+                    <input
+                        type="text"
+                        id="searchInput"
+                        class="search-input"
+                        data-i18n-placeholder="historySearchPlaceholder"
+                        placeholder="Search by query..."
+                    >
+                </div>
+
+                <div id="historyList" class="history-list"></div>
+
+                <div id="emptyState" class="empty-state" style="display: none;">
+                    <div class="empty-text" data-i18n="noHistoryRecord">No history record</div>
+                </div>
+
+                <div id="noResultsState" class="empty-state" style="display: none;">
+                    <div class="empty-text" data-i18n="noResultsFound">No results found</div>
+                    <div class="empty-hint" data-i18n="tryDifferentKeywords">Try different keywords</div>
+                </div>
+            </div>
+        </main>
     </div>
+
     <script src="../config/baseConfig.js"></script>
     <script src="history.js"></script>
 </body>

@@ -15,14 +15,7 @@ const DEV_CONFIG = {
 
 };
 
-// 生产环境 console 重写（仅在 production 模式下）
-if (DEV_CONFIG.IS_PRODUCTION) {
-  console.log = function() { return undefined; };
-  console.warn = function() { return undefined; };
-  console.error = function() { return undefined; };
-  console.info = function() { return undefined; };
-  console.debug = function() { return undefined; };
-}
+// 生产环境 console 重写（已安全移除，防止 Service Worker 环境下由于只读 console 导致注册失败）
 
 // 应用配置管理器
 const AppConfigManager = {

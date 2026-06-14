@@ -1,8 +1,5 @@
 // 控制调试日志输出，生产模式下屏蔽普通的 console.log 以优化性能
 const DEBUG_MODE = false;
-if (!DEBUG_MODE) {
-  console.log = function() {};
-}
 
 importScripts('./config/baseConfig.js');     // 加载基础配置（包含开发环境配置）
 
@@ -69,45 +66,34 @@ async function initializeLocalConfig() {
 // 初始化默认提示词模板
 async function initializeDefaultPromptTemplates() {
   try {
-    const { promptTemplates } = await chrome.storage.sync.get('promptTemplates');
+    const data = await chrome.storage.sync.get(['promptTemplates', 'promptTemplatesInitializedV3']);
     
-    // 如果还没有提示词模板，设置默认模板
-    if (!promptTemplates || promptTemplates.length === 0) {
+    // 如果没有初始化过或者需要升级
+    if (!data.promptTemplatesInitializedV3) {
       const defaultTemplates = [
         {
-          id: 'risk_analysis_cn',
-          name: '风险分析',
-          query: '导致失败的原因:「{query}」',
+          id: 'card_refine_cn',
+          name: '精简卡片',
+          query: '帮我把这个文案整理稍微精简，然后做成一个简洁明了 、生动形象、风格舒适的信息卡片，图片比例 3:4 \n\n文案: {query}',
           order: 1,
           isDefault: true
         },
         {
-          id: 'risk_analysis',
-          name: 'RiskAnalysis',
-          query: 'Root cause of the failure:「{query}」',
+          id: 'simple_summary_cn',
+          name: '简单总结',
+          query: '网页地址: {query} \n\n 请对该网页内容做结构化摘要：\n\n一、一句话核心\n（最核心的一个结论）\n\n二、详细总结\n（150字以内，涵盖背景、关键逻辑、结果/建议）\n\n三、值得单独提出的亮点（至少2个，不超过5个）\n按以下分类可选：\n\n🔥 反常识/颠覆认知\n\n💡 新思路/新方法\n\n📊 关键数据或案例\n\n🛠 可直接使用的小技巧\n\n⚠️ 常见的误区或风险\n\n每条格式：[类型] 亮点内容',
           order: 2,
-          isDefault: true
-        },
-        {
-          id: 'best_practice_cn',
-          name: '最佳实践',
-          query: '写一份这件事做成功的回顾报告:「{query}」',
-          order: 3,
-          isDefault: true
-        },
-        {
-          id: 'best_practice',
-          name: 'BestPractice',
-          query: 'Write a success retrospective report on this project:「{query}」',
-          order: 4,
           isDefault: true
         }
       ];
       
-      await chrome.storage.sync.set({ promptTemplates: defaultTemplates });
-      console.log('已初始化默认提示词模板');
+      await chrome.storage.sync.set({ 
+        promptTemplates: defaultTemplates,
+        promptTemplatesInitializedV3: true 
+      });
+      console.log('已初始化默认提示词模板 (精简卡片 & 简单总结)');
     } else {
-      console.log('提示词模板已存在，跳过初始化');
+      console.log('提示词模板已初始化过，跳过初始化');
     }
   } catch (error) {
     console.error('初始化默认提示词模板失败:', error);

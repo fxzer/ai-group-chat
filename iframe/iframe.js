@@ -127,26 +127,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     // 初始化自动调整高度的输入框
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
-        // 自动调整输入框高度
-        function autoResizeTextarea() {
-            searchInput.style.height = 'auto';
-            const scrollHeight = searchInput.scrollHeight;
-            const minHeight = 36; // 最小高度
-            const maxHeight = 200; // 最大高度
-            
-            // 如果内容高度小于等于最小高度，保持最小高度不变
-            if (scrollHeight <= minHeight) {
-                searchInput.style.height = minHeight + 'px';
-            } else {
-                // 只有当内容真正需要更多空间时才调整高度
-                const newHeight = Math.min(scrollHeight, maxHeight);
-                searchInput.style.height = newHeight + 'px';
-            }
-        }
-        
-        // 监听输入事件
-        searchInput.addEventListener('input', autoResizeTextarea);
-        
         // 输入时显隐清空按钮
         searchInput.addEventListener('input', () => {
             const btn = document.getElementById('clearInputBtn');
@@ -163,31 +143,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 searchInput.value = '';
                 searchInput.focus();
                 clearBtn.style.display = 'none';
-                autoResizeTextarea();
             });
         }
-        
-        // 监听粘贴事件
-        searchInput.addEventListener('paste', () => {
-            // 延迟执行，等待粘贴内容处理完成
-            setTimeout(autoResizeTextarea, 10);
-        });
-        
-        // 监听聚焦事件，自动调整高度
-        searchInput.addEventListener('focus', () => {
-            // 聚焦时总是调用自动调整函数
-            autoResizeTextarea();
-        });
-        
-        // 监听失焦事件，自动收回高度并隐藏建议
-        searchInput.addEventListener('blur', (e) => {
-            // 失焦后始终收回到底部（单行高度）
-            searchInput.style.height = '36px';
-            
-        });
-        
-        // 初始调整
-        autoResizeTextarea();
     }
     
     // 初始化列数选择
@@ -1801,6 +1758,7 @@ function addSiteDragFunctionality(siteItem) {
         isDragging = true;
 
         const rect = siteItem.getBoundingClientRect();
+        const originalWidth = rect.width;
         const offsetY = e.clientY - rect.top;
         // 动态检测所属容器（启用或未启用列表）
         const container = siteItem.closest('.site-items-container');
@@ -1821,7 +1779,7 @@ function addSiteDragFunctionality(siteItem) {
         siteItem.style.opacity = '0.8';
         siteItem.style.transform = 'rotate(2deg)';
         siteItem.style.pointerEvents = 'none';
-        siteItem.style.width = siteItem.offsetWidth + 'px';
+        siteItem.style.width = originalWidth + 'px';
         siteItem.style.left = rect.left + 'px';
         siteItem.style.top = (e.clientY - offsetY) + 'px';
         siteItem.dataset.offsetY = offsetY;
@@ -2088,17 +2046,24 @@ async function showQuerySuggestions(query) {
       querySuggestions.appendChild(chip);
     });
 
-    // 设置图标
-    const settingsIcon = document.createElement('img');
-    settingsIcon.src = '../icons/edit.png';
-    settingsIcon.alt = '设置模板';
-    settingsIcon.title = '编辑提示词模板';
-    settingsIcon.className = 'query-suggestion-settings-icon';
-    settingsIcon.addEventListener('click', (e) => {
+    // 更多操作按钮（编辑提示词模板）
+    const moreBtn = document.createElement('button');
+    moreBtn.type = 'button';
+    moreBtn.className = 'query-suggestion-item query-suggestion-more-btn';
+    moreBtn.title = chrome.i18n.getMessage('editTemplateTitle') || '编辑提示词模板';
+    moreBtn.setAttribute('aria-label', moreBtn.title);
+    moreBtn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <circle cx="5" cy="12" r="2"/>
+        <circle cx="12" cy="12" r="2"/>
+        <circle cx="19" cy="12" r="2"/>
+      </svg>
+    `;
+    moreBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       window.open(chrome.runtime.getURL('options/options.html#prompt-templates'), '_blank');
     });
-    querySuggestions.appendChild(settingsIcon);
+    querySuggestions.appendChild(moreBtn);
 
   } catch (error) {
     console.error('加载提示词模板失败:', error);
@@ -3365,7 +3330,6 @@ function initializeFileUpload() {
   const fileInput = document.getElementById('fileInput');
   
   if (!fileUploadButton || !fileInput) {
-    console.warn('文件上传元素未找到');
     return;
   }
   
@@ -3386,22 +3350,17 @@ function initializeFileUpload() {
 // 初始化导出回答功能
 function initializeExportResponses() {
   const exportButton = document.getElementById('exportResponsesButton');
-  
   if (!exportButton) {
-    console.warn('导出回答按钮未找到');
     return;
   }
   
   // 点击导出按钮显示导出模态框
   exportButton.addEventListener('click', () => {
-    console.log('🎯 导出按钮被点击');
     trackEvent('iframe_export_click', {
       trigger: 'button'
     });
     showExportModal();
   });
-  
-  console.log('🎯 导出回答功能已初始化');
 }
 
 // 处理文件选择

@@ -39,6 +39,15 @@ function initializeI18n() {
       element.textContent = message;
     }
   });
+
+  // 更新所有带有 data-i18n-placeholder 属性的元素的 placeholder
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+    const key = element.getAttribute('data-i18n-placeholder');
+    const message = chrome.i18n.getMessage(key);
+    if (message) {
+      element.placeholder = message;
+    }
+  });
 }
 
 // 显示消息
@@ -171,18 +180,19 @@ async function initializePromptTemplates() {
 // 确保存在默认模板
 async function ensureDefaultTemplates() {
   try {
-    const { promptTemplates = [] } = await chrome.storage.sync.get('promptTemplates');
+    const data = await chrome.storage.sync.get(['promptTemplates', 'promptTemplatesInitializedV3']);
     
-    // 如果没有模板，提醒用户模板将由系统自动初始化
-    if (promptTemplates.length === 0) {
-      console.log('提示词模板为空，将依赖系统自动初始化');
-      
-      // 触发 background.js 的初始化（如果还没有运行）
+    // 如果完全没有初始化过，且没有模板
+    if (!data.promptTemplatesInitializedV3 && (!data.promptTemplates || data.promptTemplates.length === 0)) {
+      console.log('提示词模板为空且未初始化，将进行初始化');
       try {
         await chrome.runtime.sendMessage({ action: 'initializeDefaultTemplates' });
       } catch (error) {
         console.log('无法发送初始化消息，background 可能已处理:', error);
       }
+    } else if (data.promptTemplates && data.promptTemplates.length > 0 && !data.promptTemplatesInitializedV3) {
+      // 用户已有模板但没有标记，更新标记
+      await chrome.storage.sync.set({ promptTemplatesInitializedV3: true });
     }
   } catch (error) {
     console.error('检查默认模板失败:', error);
@@ -204,7 +214,7 @@ async function loadTemplatesList() {
       container.innerHTML = `
         <div style="text-align: center; color: #666; padding: 40px;">
           <p>暂无提示词模板</p>
-          <p style="font-size: 14px;">点击上方"添加新模板"按钮开始创建</p>
+          <p style="font-size: 14px;">点击上方"添加"按钮</p>
         </div>
       `;
       return;
@@ -234,8 +244,8 @@ async function loadTemplatesList() {
               cursor: pointer;
               font-size: 12px;
               color: #666;
-            " data-i18n="editButton">编辑</button>
-            ${!template.isDefault ? `<button class="delete-template-btn" data-template-id="${template.id}" style="
+            " data-i18n="editButton">${chrome.i18n.getMessage('editButton') || '编辑'}</button>
+            <button class="delete-template-btn" data-template-id="${template.id}" style="
               background: #ffebee;
               border: 1px solid #ffcdd2;
               border-radius: 4px;
@@ -243,7 +253,7 @@ async function loadTemplatesList() {
               cursor: pointer;
               font-size: 12px;
               color: #d32f2f;
-            " data-i18n="deleteButton">删除</button>` : ''}
+            " data-i18n="deleteButton">${chrome.i18n.getMessage('deleteButton') || '删除'}</button>
           </div>
         </div>
         <div style="
@@ -256,6 +266,7 @@ async function loadTemplatesList() {
           color: #495057;
           word-break: break-word;
           margin-left: 28px;
+          white-space: pre-wrap;
         ">${template.query}</div>
       </div>
     `).join('');
@@ -273,6 +284,13 @@ async function loadTemplatesList() {
     
   } catch (error) {
     console.error('加载模板列表失败:', error);
+  }
+}
+
+// 更新清除按钮显示状态的辅助函数
+function updateClearButtonVisibility(inputEl, clearBtnEl) {
+  if (clearBtnEl) {
+    clearBtnEl.style.display = inputEl.value ? 'flex' : 'none';
   }
 }
 
@@ -308,6 +326,30 @@ function bindTemplateEvents() {
   const templatesList = document.getElementById('templatesList');
   if (templatesList) {
     templatesList.addEventListener('click', handleTemplateListClick);
+  }
+
+  // 绑定清除按钮事件
+  const nameInput = document.getElementById('templateName');
+  const queryInput = document.getElementById('templateQuery');
+  const clearNameBtn = document.getElementById('clearNameBtn');
+  const clearQueryBtn = document.getElementById('clearQueryBtn');
+
+  if (nameInput && clearNameBtn) {
+    nameInput.addEventListener('input', () => updateClearButtonVisibility(nameInput, clearNameBtn));
+    clearNameBtn.addEventListener('click', () => {
+      nameInput.value = '';
+      updateClearButtonVisibility(nameInput, clearNameBtn);
+      nameInput.focus();
+    });
+  }
+
+  if (queryInput && clearQueryBtn) {
+    queryInput.addEventListener('input', () => updateClearButtonVisibility(queryInput, clearQueryBtn));
+    clearQueryBtn.addEventListener('click', () => {
+      queryInput.value = '';
+      updateClearButtonVisibility(queryInput, clearQueryBtn);
+      queryInput.focus();
+    });
   }
 }
 
@@ -348,6 +390,12 @@ function showTemplateDialog(template = null) {
   
   dialog.style.display = 'block';
   nameInput.focus();
+
+  // 更新清除按钮的初始显示状态
+  const clearNameBtn = document.getElementById('clearNameBtn');
+  const clearQueryBtn = document.getElementById('clearQueryBtn');
+  updateClearButtonVisibility(nameInput, clearNameBtn);
+  updateClearButtonVisibility(queryInput, clearQueryBtn);
 }
 
 // 隐藏模板对话框
@@ -396,7 +444,6 @@ async function saveTemplate() {
         };
       }
     } else {
-      // 添加新模板（放到末尾）
       const newTemplate = {
         id: generateTemplateId(),
         name,
@@ -473,6 +520,8 @@ function addTemplateDragFunctionality(templateItem) {
     isDragging = true;
 
     const rect = templateItem.getBoundingClientRect();
+    const originalWidth = rect.width;
+    const originalHeight = rect.height;
     const offsetY = e.clientY - rect.top;
     const container = document.getElementById('templatesList');
     const items = Array.from(container.querySelectorAll('.template-item'));
@@ -483,7 +532,7 @@ function addTemplateDragFunctionality(templateItem) {
 
     placeholder = document.createElement('div');
     placeholder.className = 'drag-placeholder';
-    placeholder.style.height = templateItem.offsetHeight + 'px';
+    placeholder.style.height = originalHeight + 'px';
     container.insertBefore(placeholder, templateItem.nextSibling);
 
     templateItem.style.position = 'fixed';
@@ -491,7 +540,7 @@ function addTemplateDragFunctionality(templateItem) {
     templateItem.style.opacity = '0.8';
     templateItem.style.transform = 'rotate(2deg)';
     templateItem.style.pointerEvents = 'none';
-    templateItem.style.width = templateItem.offsetWidth + 'px';
+    templateItem.style.width = originalWidth + 'px';
     templateItem.style.left = rect.left + 'px';
     templateItem.style.top = (e.clientY - offsetY) + 'px';
     templateItem.dataset.offsetY = offsetY;
@@ -501,23 +550,36 @@ function addTemplateDragFunctionality(templateItem) {
       const offY = parseFloat(templateItem.dataset.offsetY) || 0;
       templateItem.style.top = (ev.clientY - offY) + 'px';
 
-      const allItems = Array.from(container.querySelectorAll('.template-item'));
-      let newIdx = initialIndex;
+      const allItems = Array.from(container.querySelectorAll('.template-item:not(.dragging)'));
+      let closestItem = null;
+      let minDistance = Infinity;
+      let insertBefore = true;
+
       for (let i = 0; i < allItems.length; i++) {
-        const r = allItems[i].getBoundingClientRect();
-        if (ev.clientY < r.top + r.height / 2) {
-          newIdx = i;
-          break;
+        const item = allItems[i];
+        const r = item.getBoundingClientRect();
+        const centerX = r.left + r.width / 2;
+        const centerY = r.top + r.height / 2;
+        const dist = Math.pow(ev.clientX - centerX, 2) + Math.pow(ev.clientY - centerY, 2);
+        
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestItem = item;
+          
+          // 大于 1024px 时为网格布局，根据横向位置决定插入位置；否则根据纵向位置决定
+          if (window.innerWidth > 1024) {
+            insertBefore = ev.clientX < centerX;
+          } else {
+            insertBefore = ev.clientY < centerY;
+          }
         }
-        newIdx = i + 1;
       }
-      if (newIdx !== initialIndex) {
-        if (newIdx >= allItems.length) {
-          container.appendChild(placeholder);
-        } else {
-          container.insertBefore(placeholder, allItems[newIdx]);
+
+      if (closestItem) {
+        const targetSibling = insertBefore ? closestItem : closestItem.nextSibling;
+        if (placeholder.nextSibling !== targetSibling) {
+          container.insertBefore(placeholder, targetSibling);
         }
-        initialIndex = newIdx;
       }
     };
 

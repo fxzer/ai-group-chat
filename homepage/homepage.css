@@ -257,18 +257,16 @@ html, body {
     background: #e0e0e0;
 }
 
-.query-suggestion-settings-icon {
-    cursor: pointer;
-    width: 20px;
-    height: 20px;
-    margin-left: 8px;
-    vertical-align: middle;
-    opacity: 0.6;
-    transition: opacity 0.2s;
+button.query-suggestion-more-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+    line-height: 1;
 }
 
-.query-suggestion-settings-icon:hover {
-    opacity: 1;
+button.query-suggestion-more-btn svg {
+    display: block;
 }
 
 /* Toast 动画 */
