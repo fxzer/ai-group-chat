@@ -864,7 +864,7 @@ body.has-live-summary-drawer-open #liveSummaryDrawerToggle {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 16px;
+    padding: 0 12px 12px;
     border-bottom: 1px solid #eee;
     font-weight: 600;
     font-size: 15px;
@@ -1312,7 +1312,6 @@ body.has-live-summary-drawer-open #liveSummaryDrawerToggle {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
-    padding: 4px 0;
     max-height: 60vh;
     overflow-y: auto;
 }

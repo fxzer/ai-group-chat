@@ -188,7 +188,7 @@ function showSummaryModal() {
   modal.innerHTML = `
     <div class="summary-modal-content">
       <div class="summary-modal-header">
-        <h3 class="summary-modal-title">🤖 ${getSummaryI18nMessage('summaryModalTitle', 'AI 智能总结')}</h3>
+        <h3 class="summary-modal-title"> ${getSummaryI18nMessage('summaryModalTitle', 'AI 智能总结')}</h3>
         <button class="summary-close-btn" id="summaryCloseBtn">×</button>
       </div>
       
