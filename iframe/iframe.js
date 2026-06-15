@@ -43,6 +43,8 @@ function getOpenedSites() {
 // postMessage 被浏览器静默丢弃。我们通过监听 iframe 发送到父页面的消息，
 // 从 event.origin 获取其实际 origin 并缓存，供后续出站消息使用。
 const iframeActualOriginMap = new WeakMap();
+// 暴露到 window 供 export-responses.js 等同页面脚本访问
+window.iframeActualOriginMap = iframeActualOriginMap;
 
 // 向 AI 站点 iframe 安全发送消息（S2：用具体 origin 取代 '*'）
 // 优先使用缓存的实际 origin（来自 iframe 之前发送的消息中的 event.origin），
@@ -1253,7 +1255,11 @@ async function getIframeLatestUrl(iframe, siteName, historyId = null) {
                 console.log('[iframe] 缓存 iframe 实际 origin (getIframeLatestUrl):', siteName, event.origin);
               }
             }
-            const trusted = await MessagingSecurity.isTrustedMessage(event, { expectedSource: iframe.contentWindow });
+            const cachedActualOrigin = iframeActualOriginMap.get(iframe);
+            const trusted = await MessagingSecurity.isTrustedMessage(event, {
+              expectedSource: iframe.contentWindow,
+              additionalTrustedOrigins: cachedActualOrigin ? [cachedActualOrigin] : [],
+            });
             if (!trusted) {
               console.warn(`[iframe] 拒绝 ${siteName} 的 GET_CURRENT_URL_RESPONSE：来源不可信`, event.origin);
               return;
@@ -3024,8 +3030,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ★ 在安全校验之前，先从 event.origin 记录 iframe 的实际 origin。
     // 有些站点（如 kimi.moonshot.cn → www.kimi.com）会发生域名级重定向，
     // 导致 iframe.src 推导的 origin 与 iframe 当前页面的实际 origin 不匹配。
-    // 即使这些消息（如 tea:sdk:info）被后续的 isTrustedMessage 拒绝，
-    // 我们已经把正确的 origin 缓存下来，供后续 postToIframe 出站消息使用。
+    // 缓存的 origin 用于两个目的：
+    // 1. 供后续 postToIframe 出站消息使用正确的 targetOrigin
+    // 2. 作为 additionalTrustedOrigins 传给 isTrustedMessage，信任重定向后的 origin
     if (event.origin && event.origin !== window.location.origin) {
       const cachedOrigin = iframeActualOriginMap.get(knownIframe);
       if (cachedOrigin !== event.origin) {
@@ -3036,7 +3043,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 异步校验 origin（需查 AI 站点集合）；LINK_CLICK 可先用 source 匹配快速放行，
     // 但仍要求 origin 不是明显异常的扩展/本地源之外的可疑值。
-    const trusted = await MessagingSecurity.isTrustedMessage(event, { expectedSource: knownIframe.contentWindow });
+    const cachedActualOrigin = iframeActualOriginMap.get(knownIframe);
+    const trusted = await MessagingSecurity.isTrustedMessage(event, {
+      expectedSource: knownIframe.contentWindow,
+      additionalTrustedOrigins: cachedActualOrigin ? [cachedActualOrigin] : [],
+    });
     if (!trusted) {
       console.warn('[iframe] 拒绝来自不可信来源的消息:', event.origin, event.data.type);
       return;

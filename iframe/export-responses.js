@@ -1085,7 +1085,11 @@ function requestIframeContent(iframe, siteName) {
     const messageHandler = async (event) => {
       if (event.data.type === 'EXTRACTED_CONTENT' && event.data.siteName === siteName) {
         // 安全校验（S1）：仅接受来自目标 iframe 且 origin 可信的消息
-        const trusted = await MessagingSecurity.isTrustedMessage(event, { expectedSource: iframe.contentWindow });
+        const cachedActualOrigin = window.iframeActualOriginMap && window.iframeActualOriginMap.get(iframe);
+        const trusted = await MessagingSecurity.isTrustedMessage(event, {
+          expectedSource: iframe.contentWindow,
+          additionalTrustedOrigins: cachedActualOrigin ? [cachedActualOrigin] : [],
+        });
         if (!trusted) {
           console.warn(`[export] 拒绝 ${siteName} 的 EXTRACTED_CONTENT：来源不可信`, event.origin);
           return;

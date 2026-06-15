@@ -750,16 +750,6 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
 
 
 
-// 监听扩展卸载事件
-self.AppConfigManager.getExternalLinks().then(externalLinks => {
-  chrome.runtime.setUninstallURL(externalLinks?.uninstallSurvey || '', () => {
-    if (chrome.runtime.lastError) {
-      console.error('设置卸载 URL 失败:', chrome.runtime.lastError);
-    }
-  });
-}).catch(err => {
-  console.error('获取卸载 URL 失败:', err);
-});
 
 // 跟踪侧边栏状态
 let sidePanelOpenState = new Map();

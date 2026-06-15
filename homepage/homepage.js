@@ -584,20 +584,7 @@ async function initializeActionLinks() {
             });
         }
         
-        // 用户反馈链接
-        const feedbackLink = document.getElementById('feedbackLink');
-        if (feedbackLink) {
-            feedbackLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                // 从配置中获取反馈链接
-                const feedbackUrl = externalLinks.feedbackSurvey || 
-                    'https://wenjuan.feishu.cn/m/cfm?t=sTFPGe4oetOi-9m3a';
-                trackEvent('homepage_feedback_click', {
-                    has_feedback_link: Boolean(externalLinks.feedbackSurvey)
-                });
-                chrome.tabs.create({ url: feedbackUrl });
-            });
-        }
+
         
         // 五星好评链接
         const reviewLink = document.getElementById('reviewLink');
@@ -635,15 +622,7 @@ async function initializeActionLinks() {
             });
         }
         
-        const feedbackLink = document.getElementById('feedbackLink');
-        if (feedbackLink) {
-            feedbackLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                chrome.tabs.create({ 
-                    url: 'https://wenjuan.feishu.cn/m/cfm?t=sTFPGe4oetOi-9m3a' 
-                });
-            });
-        }
+
         
         const reviewLink = document.getElementById('reviewLink');
         if (reviewLink) {
