@@ -1,7 +1,7 @@
 {
-  "version": "1.2.7",
-  "lastUpdated": "2026-05-03T13:56:47.698Z",
-  "description": "支持重试功能",
+  "version": "1.3.2",
+  "lastUpdated": "2026-06-15T14:00:00.000Z",
+  "description": "iframe origin 缓存重定向域名；千问发送按钮禁用修复",
   "author": "ai-group-chat",
   "sites": [
     {
@@ -757,10 +757,13 @@
             "retryInterval": 200
           },
           {
-            "action": "sendKeys",
-            "selector": "textarea[formcontrolname=\"promptText\"], textarea.cdk-textarea-autosize",
-            "keys": "⌘ + Enter",
-            "description": "发送 ⌘ + Enter (Mac) 或 Ctrl + Enter (Windows) 提交Prompt",
+            "action": "click",
+            "selector": [
+              "ms-run-button button",
+              "button.ms-button-primary",
+              "button[type=\"submit\"]"
+            ],
+            "description": "点击 Google AI Studio 发送（Run）按钮",
             "waitForElement": true,
             "maxAttempts": 10,
             "retryInterval": 200
@@ -968,106 +971,6 @@
       "type": "information"
     },
     {
-      "name": "点点",
-      "url": "https://dots.ai/",
-      "enabled": false,
-      "supportUrlQuery": false,
-      "region": "Global",
-      "hidden": false,
-      "supportIframe": true,
-      "searchHandler": {
-        "steps": [
-          {
-            "action": "focus",
-            "selector": "textarea[placeholder=\"给点点发消息\"]",
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 300,
-            "description": "聚焦 dots.ai 输入框"
-          },
-          {
-            "action": "setValue",
-            "selector": "textarea[placeholder=\"给点点发消息\"]",
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 300,
-            "description": "写入 dots.ai 提示词"
-          },
-          {
-            "action": "triggerEvents",
-            "selector": "textarea[placeholder=\"给点点发消息\"]",
-            "events": [
-              "beforeinput",
-              "input",
-              "change",
-              "blur",
-              "focus"
-            ],
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 300,
-            "description": "触发 dots.ai 输入事件"
-          },
-          {
-            "action": "wait",
-            "duration": 200,
-            "description": "等待发送按钮进入可点击状态",
-            "maxAttempts": 10,
-            "retryInterval": 200
-          },
-          {
-            "action": "click",
-            "selector": "button:has(svg.lucide-arrow-up)",
-            "retryOnDisabled": true,
-            "maxAttempts": 6,
-            "retryInterval": 500,
-            "description": "点击 dots.ai 发送按钮"
-          }
-        ]
-      },
-      "contentExtractor": {
-        "latestVisibleResponse": {
-          "messageSelector": ".assistant-message-item",
-          "ignoredAncestorSelectors": [
-            "button",
-            "[class*=\"copy\"]",
-            "[class*=\"input\"]",
-            "[class*=\"prompt\"]",
-            ".attachment",
-            "[class*=\"attachment\"]",
-            "nav",
-            "header",
-            "footer",
-            "aside",
-            "textarea"
-          ]
-        },
-        "messageContainer": ".assistant-message-item",
-        "contentSelectors": [
-          ".prose-dd"
-        ],
-        "excludeSelectors": [
-          "nav",
-          "header",
-          "footer",
-          "button",
-          "aside",
-          "textarea"
-        ],
-        "userMessageSelector": ".user-message-item",
-        "exportLatestOnly": true
-      },
-      "historyHandler": {
-        "urlFeature": "/chat/home/"
-      },
-      "userPrompt": {
-        "containerSelector": ".user-message-item",
-        "textSelector": ".user-message-card .select-text"
-      },
-      "icon": "ai/other.svg",
-      "type": "information"
-    },
-    {
       "name": "豆包",
       "url": "https://doubao.com/chat",
       "enabled": false,
@@ -1130,6 +1033,8 @@
           {
             "action": "click",
             "selector": [
+              "#flow-end-msg-send",
+              ".send-btn-wrapper button",
               ".message-input-right-button-send button",
               ".message-input-right-button-send [role=\"button\"]",
               ".message-input-right-button-send .omni-button-content-btn",
@@ -1137,9 +1042,6 @@
               "button[aria-label*=\"Submit\"]",
               "button[title*=\"发送\"]"
             ],
-            "condition": {
-              "selector": "textarea[placeholder=\"输入主题和报告要求\"], .message-input-textarea-separation, [role=\"textbox\"]"
-            },
             "retryOnDisabled": true,
             "waitForElement": true,
             "maxAttempts": 10,
@@ -1313,6 +1215,25 @@
             "waitForElement": true,
             "maxAttempts": 10,
             "retryInterval": 200
+          },
+          {
+            "action": "wait",
+            "duration": 200,
+            "description": "等待200ms让发送按钮可点"
+          },
+          {
+            "action": "click",
+            "selector": [
+              "button.search-consult-btn",
+              "button[type=\"submit\"]",
+              "button:has(svg)",
+              ".search-consult-textarea-container button",
+              "textarea[placeholder=\"请输入您的问题\"] ~ button"
+            ],
+            "waitForElement": true,
+            "maxAttempts": 10,
+            "retryInterval": 200,
+            "description": "点击发送按钮"
           }
         ]
       },
@@ -1986,7 +1907,7 @@
     },
     {
       "name": "Kimi",
-      "url": "https://kimi.com/",
+      "url": "https://kimi.moonshot.cn/",
       "enabled": false,
       "supportUrlQuery": false,
       "region": "China",
@@ -2027,6 +1948,30 @@
             "maxAttempts": 10,
             "retryInterval": 200,
             "description": "发送回车键提交（支持重试）"
+          },
+          {
+            "action": "wait",
+            "duration": 200,
+            "description": "等待200ms让发送按钮可点"
+          },
+          {
+            "action": "click",
+            "selector": [
+              ".send-button-container",
+              ".send-button-container svg",
+              ".chat-input-editor ~ .send-button-container",
+              "button.send-button",
+              "button.send-btn",
+              "button[aria-label=\"发送\"]",
+              "button[aria-label=\"Send\"]",
+              "div.chat-input-editor ~ button",
+              ".chat-input button:last-child",
+              "button:has(svg)"
+            ],
+            "waitForElement": true,
+            "maxAttempts": 10,
+            "retryInterval": 200,
+            "description": "点击 Kimi 发送按钮"
           }
         ]
       },
@@ -2354,6 +2299,9 @@
           {
             "action": "click",
             "selector": [
+              "[data-chat-input-shell=\"true\"] button",
+              "[data-qw-chat-input-position=\"chat\"] button",
+              "button[type=\"submit\"]",
               "div.message-input-right-button-send button.send-button",
               "button.send-button",
               ".message-input-right-button-send button",
@@ -2582,117 +2530,6 @@
       "type": "information"
     },
     {
-      "name": "Copilot",
-      "url": "https://copilot.microsoft.com/",
-      "enabled": false,
-      "supportUrlQuery": false,
-      "region": "US",
-      "hidden": false,
-      "supportIframe": true,
-      "searchHandler": {
-        "steps": [
-          {
-            "action": "focus",
-            "selector": [
-              "textarea#userInput",
-              "textarea[aria-label*=\"message\" i]",
-              "textarea[placeholder]",
-              "textarea"
-            ],
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 300,
-            "description": "聚焦Copilot输入框"
-          },
-          {
-            "action": "setValue",
-            "selector": [
-              "textarea#userInput",
-              "textarea[aria-label*=\"message\" i]",
-              "textarea[placeholder]",
-              "textarea"
-            ],
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 300,
-            "description": "设置Copilot输入框的值"
-          },
-          {
-            "action": "triggerEvents",
-            "selector": [
-              "textarea#userInput",
-              "textarea[aria-label*=\"message\" i]",
-              "textarea[placeholder]",
-              "textarea"
-            ],
-            "events": [
-              "input",
-              "change",
-              "blur",
-              "focus"
-            ],
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 300,
-            "description": "触发输入事件"
-          },
-          {
-            "action": "wait",
-            "duration": 200,
-            "description": "等待200ms让输入状态同步",
-            "maxAttempts": 10,
-            "retryInterval": 200
-          },
-          {
-            "action": "sendKeys",
-            "selector": [
-              "textarea#userInput",
-              "textarea[aria-label*=\"message\" i]",
-              "textarea[placeholder]",
-              "textarea"
-            ],
-            "keys": "Enter",
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 300,
-            "description": "发送回车键提交"
-          }
-        ]
-      },
-      "fileUploadHandler": {
-        "steps": [
-          {
-            "action": "focus",
-            "selector": "textarea#userInput",
-            "description": "聚焦Copilot输入框准备文件粘贴",
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 200
-          },
-          {
-            "action": "wait",
-            "duration": 200,
-            "description": "等待200ms确保聚焦完成",
-            "maxAttempts": 10,
-            "retryInterval": 200
-          },
-          {
-            "action": "paste",
-            "description": "执行文件粘贴操作"
-          }
-        ]
-      },
-      "historyHandler": {
-        "urlFeature": "/chats/"
-      },
-      "userPrompt": {
-        "containerSelector": "div[class*=\"Prose_prose__\"]",
-        "textSelector": "div[class*=\"Prose_prose__\"] > p"
-      },
-      "icon": "ai/copilot.svg",
-      "type": "information"
-    },
-    {
       "name": "Perplexity",
       "url": "https://www.perplexity.ai/search/new?q={query}",
       "enabled": false,
@@ -2770,122 +2607,6 @@
       "userPrompt": {
         "containerSelector": "div.group.relative.flex.items-end.gap-0\\.5",
         "textSelector": "div.min-w-\\[48px\\].select-none.p-3.bg-subtle.rounded-2xl.flex.items-center.justify-center span, div.min-w-\\[48px\\].select-none.p-3.bg-subtle.rounded-2xl.flex.items-center.justify-center"
-      },
-      "icon": "ai/other.svg",
-      "type": "information"
-    },
-    {
-      "name": "POE",
-      "url": "https://poe.com/",
-      "enabled": false,
-      "supportUrlQuery": false,
-      "region": "US",
-      "hidden": false,
-      "supportIframe": true,
-      "searchHandler": {
-        "steps": [
-          {
-            "action": "setValue",
-            "selector": ".GrowingTextArea_growWrap__im5W3",
-            "inputType": "special",
-            "customSetValue": "poe",
-            "description": "设置POE特殊输入框的值",
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 200
-          },
-          {
-            "action": "triggerEvents",
-            "selector": ".GrowingTextArea_growWrap__im5W3 textarea",
-            "events": [
-              "input"
-            ],
-            "description": "触发输入事件",
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 200
-          },
-          {
-            "action": "wait",
-            "duration": 100,
-            "description": "等待100ms",
-            "maxAttempts": 10,
-            "retryInterval": 200
-          },
-          {
-            "action": "click",
-            "selector": "button[data-button-send=\"true\"]",
-            "description": "点击POE发送按钮",
-            "retryOnDisabled": true,
-            "maxAttempts": 10,
-            "retryInterval": 200
-          }
-        ]
-      },
-      "fileUploadHandler": {
-        "steps": [
-          {
-            "action": "focus",
-            "selector": ".GrowingTextArea_growWrap__im5W3 textarea",
-            "description": "聚焦POE输入框准备文件粘贴",
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 200
-          },
-          {
-            "action": "wait",
-            "duration": 200,
-            "description": "等待200ms确保聚焦完成",
-            "maxAttempts": 10,
-            "retryInterval": 200
-          },
-          {
-            "action": "paste",
-            "description": "执行文件粘贴操作"
-          }
-        ]
-      },
-      "contentExtractor": {
-        "latestVisibleResponse": {
-          "messageSelector": "[class*=\"MessageBubble\"][class*=\"leftSide\"], [data-message-author-role=\"assistant\"], [class*=\"BotMessage\"]",
-          "ignoredAncestorSelectors": [
-            "button",
-            "[class*=\"copy\"]",
-            "[class*=\"input\"]",
-            "[class*=\"prompt\"]",
-            ".attachment",
-            "[class*=\"attachment\"]",
-            "[class*=\"MarkdownCodeBlock_codeHeader\"]",
-            ".sidebar",
-            "nav",
-            "header",
-            "footer"
-          ]
-        },
-        "messageContainer": "[class*=\"MessageBubble\"][class*=\"leftSide\"], [data-message-author-role=\"assistant\"], [class*=\"BotMessage\"]",
-        "contentSelectors": [
-          "[class*=\"Markdown_markdownContainer\"]"
-        ],
-        "fallbackSelectors": [
-          "[class*=\"Prose_prose\"]"
-        ],
-        "excludeSelectors": [
-          "nav",
-          "header",
-          "footer",
-          ".sidebar",
-          "button",
-          "[class*=\"MarkdownCodeBlock_codeHeader\"]"
-        ],
-        "userMessageSelector": "[data-message-author-role=\"user\"], [class*=\"user-message\"], [class*=\"UserMessage\"], [class*=\"messageRow\"][class*=\"human\"]",
-        "exportLatestOnly": true
-      },
-      "historyHandler": {
-        "urlFeature": "/chat/"
-      },
-      "userPrompt": {
-        "containerSelector": "[data-message-author-role=\"user\"], [class*=\"user-message\"], [class*=\"UserMessage\"], [class*=\"messageRow\"][class*=\"human\"]",
-        "textSelector": "[data-message-author-role=\"user\"], [class*=\"user-message\"] p, [class*=\"user-message\"] div, [class*=\"messageContent\"]"
       },
       "icon": "ai/other.svg",
       "type": "information"
@@ -3115,7 +2836,11 @@
         "steps": [
           {
             "action": "focus",
-            "selector": "div.tiptap.ProseMirror.tiptap-editor",
+            "selector": [
+              "[data-testid=\"message-textarea\"]",
+              "div.tiptap.ProseMirror.rich-text-editor",
+              "div.tiptap.ProseMirror.tiptap-editor"
+            ],
             "waitForElement": true,
             "maxAttempts": 10,
             "retryInterval": 300,
@@ -3123,7 +2848,11 @@
           },
           {
             "action": "setValue",
-            "selector": "div.tiptap.ProseMirror.tiptap-editor",
+            "selector": [
+              "[data-testid=\"message-textarea\"]",
+              "div.tiptap.ProseMirror.rich-text-editor",
+              "div.tiptap.ProseMirror.tiptap-editor"
+            ],
             "inputType": "contenteditable",
             "waitForElement": true,
             "maxAttempts": 10,
@@ -3132,7 +2861,11 @@
           },
           {
             "action": "triggerEvents",
-            "selector": "div.tiptap.ProseMirror.tiptap-editor",
+            "selector": [
+              "[data-testid=\"message-textarea\"]",
+              "div.tiptap.ProseMirror.rich-text-editor",
+              "div.tiptap.ProseMirror.tiptap-editor"
+            ],
             "events": [
               "input",
               "change",
@@ -3154,6 +2887,8 @@
           {
             "action": "click",
             "selector": [
+              "[data-testid=\"send-button\"]",
+              "[aria-label=\"Send message\"]",
               "#input-send-icon > div",
               "#input-send-icon"
             ],
@@ -3237,7 +2972,11 @@
             "action": "click",
             "selector": [
               "#chat-home-view-container div.min-w-0.flex.gap-2.ml-auto.flex-shrink.items-center button:last-child",
-              "#manus-chat-box div.min-w-0.flex.gap-2.ml-auto.flex-shrink.items-center button:last-child"
+              "#manus-chat-box div.min-w-0.flex.gap-2.ml-auto.flex-shrink.items-center button:last-child",
+              "button[aria-label=\"Send\"]",
+              "button.send-btn",
+              "button:has(svg.lucide-arrow-up)",
+              "button:has(svg)"
             ],
             "retryOnDisabled": true,
             "maxAttempts": 10,
@@ -3273,26 +3012,6 @@
       },
       "icon": "ai/manus.svg",
       "type": "Agents"
-    },
-    {
-      "name": "Bing",
-      "url": "https://www.bing.com/search?q={query}",
-      "enabled": false,
-      "supportUrlQuery": true,
-      "region": "US",
-      "hidden": true,
-      "supportIframe": true,
-      "searchHandler": {
-        "steps": [
-          {
-            "action": "custom",
-            "customAction": "url_query",
-            "description": "使用URL查询，无需输入框操作"
-          }
-        ]
-      },
-      "icon": "ai/bing.svg",
-      "type": "information"
     },
     {
       "name": "Nano Banana",
@@ -3431,115 +3150,6 @@
       },
       "icon": "www.google.com.png",
       "type": "image"
-    },
-    {
-      "name": "谷歌翻译",
-      "url": "https://translate.google.com/?sl=auto&tl=en&op=translate",
-      "enabled": false,
-      "supportUrlQuery": false,
-      "region": "Global",
-      "hidden": false,
-      "supportIframe": true,
-      "searchHandler": {
-        "steps": [
-          {
-            "action": "focus",
-            "selector": "textarea[role=\"combobox\"]",
-            "description": "聚焦谷歌翻译源文本输入框",
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 200
-          },
-          {
-            "action": "setValue",
-            "selector": "textarea[role=\"combobox\"]",
-            "description": "设置谷歌翻译源文本内容",
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 200
-          },
-          {
-            "action": "triggerEvents",
-            "selector": "textarea[role=\"combobox\"]",
-            "events": [
-              "input",
-              "change",
-              "blur",
-              "focus"
-            ],
-            "description": "触发谷歌翻译输入事件",
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 200
-          }
-        ]
-      },
-      "contentExtractor": {
-        "contentSelectors": [
-          "span[lang=\"en\"]",
-          "span[jsname=\"W297wb\"]",
-          "div[aria-live=\"polite\"] span[jsname=\"W297wb\"]",
-          "div[aria-live=\"polite\"] span[lang]"
-        ]
-      },
-      "icon": "ai/google.svg",
-      "type": "translate"
-    },
-    {
-      "name": "必应翻译",
-      "url": "https://www.bing.com/translator",
-      "enabled": false,
-      "supportUrlQuery": false,
-      "region": "Global",
-      "hidden": false,
-      "supportIframe": true,
-      "searchHandler": {
-        "steps": [
-          {
-            "action": "focus",
-            "selector": "#tta_input_ta",
-            "description": "聚焦必应翻译源文本输入框",
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 200
-          },
-          {
-            "action": "setValue",
-            "selector": "#tta_input_ta",
-            "inputType": "special",
-            "specialConfig": {
-              "type": "custom-element",
-              "selector": "#tta_input_ta",
-              "method": "textContent"
-            },
-            "description": "设置必应翻译源文本内容（contenteditable 文本节点）",
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 200
-          },
-          {
-            "action": "triggerEvents",
-            "selector": "#tta_input_ta",
-            "events": [
-              "input",
-              "change",
-              "blur",
-              "focus"
-            ],
-            "description": "触发必应翻译输入事件",
-            "waitForElement": true,
-            "maxAttempts": 10,
-            "retryInterval": 200
-          }
-        ]
-      },
-      "contentExtractor": {
-        "contentSelectors": [
-          "#tta_output_ta"
-        ]
-      },
-      "icon": "ai/bing.svg",
-      "type": "translate"
     }
   ]
 }

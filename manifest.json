@@ -17,8 +17,7 @@
     "<all_urls>"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; frame-src *; img-src 'self' chrome-extension: data: blob:;",
-    "sandbox": "sandbox allow-scripts allow-forms allow-popups allow-modals; script-src 'unsafe-eval' 'self'"
+    "extension_pages": "script-src 'self'; object-src 'self'; frame-src *; img-src 'self' chrome-extension: data: blob:;"
   },
   "action": {
     "default_icon": {
@@ -44,6 +43,7 @@
       "js": [
         "config/baseConfig.js",
         "config/siteDetector.js",
+        "lib/messaging.js",
         "iframe/inject.js"
       ],
       "run_at": "document_start",
@@ -54,7 +54,6 @@
       "matches": ["<all_urls>"],
       "css": ["content-scripts/site-button.css"],
       "js": [
-        "config/baseConfig.js",
         "content-scripts/site-button.js"
       ],
       "run_at": "document_end"
@@ -67,15 +66,17 @@
       "homepage/*",
       "history/*",
       "icons/*",
-      "config/*",
-      "content-scripts/*",
-      "debug/*"
+      "lib/*",
+      "content-scripts/*"
     ],
     "use_dynamic_url": true,
     "matches": [
       "chrome-extension://*/*",
       "<all_urls>"
     ]
+  }, {
+    "resources": ["config/*"],
+    "matches": ["chrome-extension://*/*"]
   }, {
     "resources": ["icons/*"],
     "matches": ["<all_urls>"]

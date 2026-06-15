@@ -654,10 +654,5 @@
 
     // 立即处理现有的容器
     processExistingContainers();
-
-    // 定期检查（处理动态加载的内容）
-    setInterval(() => {
-      processExistingContainers();
-    }, 1000);
   }
 })();

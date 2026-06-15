@@ -57,12 +57,23 @@ h1 {
 }
 
 .drag-placeholder {
-  background: #e8f5e9;
-  border: 2px dashed #00a240;
-  border-radius: 8px;
-  margin-bottom: 5px;
-  opacity: 0.7;
-  transition: all 0.2s ease;
+  position: relative;
+  height: 4px;
+  background: #00a240;
+  border-radius: 2px;
+  margin: 8px 0;
+  box-sizing: border-box;
+}
+
+.drag-placeholder::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -3px;
+  width: 10px;
+  height: 10px;
+  background: #00a240;
+  border-radius: 50%;
 }
 
 /* 站点头部 */
@@ -349,6 +360,19 @@ input:checked + .slider:before {
   
   .template-item {
     margin-bottom: 0 !important;
+  }
+
+  .drag-placeholder {
+    height: auto;
+    background: rgba(0, 162, 64, 0.04);
+    border: 2px dashed #00a240;
+    border-radius: 8px;
+    margin: 0;
+    box-sizing: border-box;
+  }
+
+  .drag-placeholder::before {
+    display: none;
   }
 }
 

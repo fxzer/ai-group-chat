@@ -62,29 +62,41 @@ function clearSummaryCache() {
 }
 window.clearSummaryCache = clearSummaryCache;
 
-// 使用 marked.js 渲染 Markdown
+// 使用 marked.js 渲染 Markdown（所有输出经 DOMPurify 清理，防 XSS - S5）
 function renderSummaryMarkdown(text) {
   if (!text) return '';
+  let html = '';
   try {
     if (typeof marked !== 'undefined' && marked.parse) {
-      return marked.parse(text);
+      html = marked.parse(text);
     }
   } catch (error) {
     console.error('marked.js 渲染 Markdown 失败，使用简易渲染器降级:', error);
+    // 简易降级渲染器（防 XSS 且保留代码块和换行）
+    html = String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    html = html.replace(/```([\s\S]*?)```/g, (match, code) => {
+      return `<pre><code>${code.trim()}</code></pre>`;
+    });
+    html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+    html = html.replace(/\n/g, '<br>');
   }
-  
-  // 简易降级渲染器（防 XSS 且保留代码块和换行）
-  let html = text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-  
-  html = html.replace(/```([\s\S]*?)```/g, (match, code) => {
-    return `<pre><code>${code.trim()}</code></pre>`;
-  });
-  html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-  html = html.replace(/\n/g, '<br>');
-  return html;
+  // 统一用 DOMPurify 清理 HTML 输出，剥离事件处理器/脚本等危险节点
+  if (typeof DOMPurify !== 'undefined' && DOMPurify.sanitize) {
+    try {
+      return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+    } catch (e) {
+      console.error('DOMPurify 清理失败，拒绝渲染:', e);
+      return '';
+    }
+  }
+  // DOMPurify 不可用时，降级为完全转义的纯文本（宁可丢失格式也不注入）
+  console.warn('DOMPurify 不可用，summary 以纯文本形式渲染');
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // 触发后台生成，展示按钮 loading 动画

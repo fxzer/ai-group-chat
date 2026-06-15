@@ -160,7 +160,7 @@
           </div>
 
           <div class="form-group" style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 8px; font-weight: bold; font-size: 14px;" data-i18n="summaryApiUrlLabel">API 接口地址</label>
+            <label style="display: block; margin-bottom: 8px; font-weight: bold; font-size: 14px;">BASE URL</label>
             <input type="text" id="summaryApiUrl" placeholder="https://api.deepseek.com/v1" style="
               width: 100%;
               padding: 10px 12px;
@@ -171,18 +171,43 @@
             ">
           </div>
           <div class="form-group" style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 8px; font-weight: bold; font-size: 14px;" data-i18n="summaryApiKeyLabel">API Key</label>
-            <input type="password" id="summaryApiKey" placeholder="sk-..." style="
-              width: 100%;
-              padding: 10px 12px;
-              border: 1px solid #ddd;
-              border-radius: 6px;
-              font-size: 14px;
-              box-sizing: border-box;
-            ">
+            <label style="display: block; margin-bottom: 8px; font-weight: bold; font-size: 14px;">API KEY</label>
+            <div class="api-key-wrapper" style="position: relative;">
+              <input type="password" id="summaryApiKey" placeholder="sk-..." style="
+                width: 100%;
+                padding: 10px 40px 10px 12px;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                font-size: 14px;
+                box-sizing: border-box;
+              ">
+              <button type="button" id="toggleApiKeyVisibility" class="toggle-visibility-btn" title="显示/隐藏" aria-label="显示或隐藏 API Key" style="
+                position: absolute;
+                right: 8px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: none;
+                border: none;
+                cursor: pointer;
+                padding: 4px;
+                color: #888;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              ">
+                <svg class="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <svg class="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </button>
+            </div>
           </div>
           <div class="form-group" style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 8px; font-weight: bold; font-size: 14px;" data-i18n="summaryApiModelLabel">API 模型名称</label>
+            <label style="display: block; margin-bottom: 8px; font-weight: bold; font-size: 14px;">MODEL ID</label>
             <input type="text" id="summaryApiModel" placeholder="deepseek-chat" style="
               width: 100%;
               padding: 10px 12px;

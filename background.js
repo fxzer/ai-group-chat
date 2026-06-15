@@ -27,17 +27,10 @@ function logExtensionIdForDevelopment() {
   }
 }
 
-// 从本地文件初始化配置到 Chrome Storage Local
-async function initializeLocalConfig() {
+// 从本地文件初始化配置到 Chrome Storage Local (支持版本比对和强制更新)
+async function initializeLocalConfig(force = false) {
   try {
-    console.log('开始从本地文件初始化配置...');
-    
-    // 检查是否已经有 remoteSiteHandlers 数据
-    const existingData = await chrome.storage.local.get('remoteSiteHandlers');
-    if (existingData.remoteSiteHandlers && existingData.remoteSiteHandlers.sites) {
-      console.log('remoteSiteHandlers 已存在，跳过本地初始化');
-      return;
-    }
+    console.log('开始从本地文件检查/初始化配置...');
     
     // 从本地文件读取配置
     const response = await fetch(chrome.runtime.getURL('config/siteHandlers.json'));
@@ -50,14 +43,27 @@ async function initializeLocalConfig() {
       throw new Error('本地配置文件中没有站点数据');
     }
     
+    const localVersion = localConfig.version;
+    const existingData = await chrome.storage.local.get(['remoteSiteHandlers', 'siteConfigVersion']);
+    const storedVersion = existingData.siteConfigVersion;
+    
+    if (!force && existingData.remoteSiteHandlers && existingData.remoteSiteHandlers.sites) {
+      // 如果本地配置版本与存储版本相同，则无需更新
+      if (storedVersion && storedVersion === localVersion) {
+        console.log('remoteSiteHandlers 已存在且版本一致，跳过本地初始化. 版本:', storedVersion);
+        return;
+      }
+      console.log('本地配置文件版本与存储版本不一致/较新. 本地:', localVersion, '存储:', storedVersion);
+    }
+    
     // 将本地配置存储到 chrome.storage.local
     await chrome.storage.local.set({
-      siteConfigVersion: localConfig.version || Date.now(),
+      siteConfigVersion: localVersion || Date.now(),
       remoteSiteHandlers: localConfig
     });
     
-    console.log('本地配置初始化成功，站点数量:', localConfig.sites.length);
-    console.log('配置版本:', localConfig.version || Date.now());
+    console.log('本地配置更新/初始化成功，站点数量:', localConfig.sites.length);
+    console.log('新配置版本:', localVersion || Date.now());
     
   } catch (error) {
     console.error('本地配置初始化失败:', error);
@@ -140,11 +146,9 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     
     // 检查配置更新
     if (self.RemoteConfigManager) {
-      // 首次安装时，先从本地文件初始化配置
-      if (details.reason === 'install') {
-        console.log('首次安装，从本地文件初始化配置');
-        await initializeLocalConfig();
-      }
+      // 无论是安装还是更新，先从本地文件检查/初始化配置
+      console.log('调用 initializeLocalConfig() 进行版本检查');
+      await initializeLocalConfig();
       
       // 然后检查远程配置更新
       console.log('开始检查站点配置更新...');
@@ -523,37 +527,8 @@ async function getHandlerForUrl(url) {
         console.log('使用脚本控制方式打开:', siteConfig.url);
         const tab = await chrome.tabs.create({ url: siteConfig.url, active: true });
         
-        // 等待标签页加载完成，增加超时和关闭保护以防止挂起泄露
-        await new Promise((resolve) => {
-          const timeoutId = setTimeout(() => {
-            chrome.tabs.onUpdated.removeListener(updateListener);
-            chrome.tabs.onRemoved.removeListener(removeListener);
-            console.warn(`等待标签页 ${tab.id} 加载超时，继续执行处理器`);
-            resolve();
-          }, 30000); // 30 秒超时
-
-          const updateListener = (tabId, info) => {
-            if (tabId === tab.id && info.status === 'complete') {
-              clearTimeout(timeoutId);
-              chrome.tabs.onUpdated.removeListener(updateListener);
-              chrome.tabs.onRemoved.removeListener(removeListener);
-              resolve();
-            }
-          };
-
-          const removeListener = (tabId) => {
-            if (tabId === tab.id) {
-              clearTimeout(timeoutId);
-              chrome.tabs.onUpdated.removeListener(updateListener);
-              chrome.tabs.onRemoved.removeListener(removeListener);
-              console.warn(`等待中的标签页 ${tab.id} 已被用户关闭，取消等待`);
-              resolve();
-            }
-          };
-
-          chrome.tabs.onUpdated.addListener(updateListener);
-          chrome.tabs.onRemoved.addListener(removeListener);
-        });
+        // 等待标签页加载完成，包含超时和关闭保护以防泄露
+        await waitForTabComplete(tab.id);
         
         // 执行对应站点的处理函数
         await executeSiteHandler(tab.id, query, {
@@ -565,6 +540,63 @@ async function getHandlerForUrl(url) {
   } catch (error) {
     console.error('单站点搜索失败:', error);
   }
+}
+
+/**
+ * 等待标签页加载完成，包含超时和关闭清理，防止内存泄露 (P1)
+ * @param {number} tabId 标签页 ID
+ * @param {number} timeout 超时时间（毫秒）
+ * @returns {Promise<boolean>} 加载成功返回 true，超时或关闭返回 false
+ */
+function waitForTabComplete(tabId, timeout = 30000) {
+  return new Promise((resolve) => {
+    let cleaned = false;
+    
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      console.warn(`[background] 等待标签页 ${tabId} 加载超时`);
+      resolve(false);
+    }, timeout);
+
+    const updateListener = (id, info) => {
+      if (id === tabId && info.status === 'complete') {
+        cleanup();
+        resolve(true);
+      }
+    };
+
+    const removeListener = (id) => {
+      if (id === tabId) {
+        cleanup();
+        console.warn(`[background] 等待中的标签页 ${tabId} 已被用户关闭`);
+        resolve(false);
+      }
+    };
+
+    function cleanup() {
+      if (cleaned) return;
+      cleaned = true;
+      clearTimeout(timeoutId);
+      chrome.tabs.onUpdated.removeListener(updateListener);
+      chrome.tabs.onRemoved.removeListener(removeListener);
+    }
+
+    chrome.tabs.onUpdated.addListener(updateListener);
+    chrome.tabs.onRemoved.addListener(removeListener);
+
+    // 检查当前状态是否已经是 complete，避免因为已经加载完成而错过 onUpdated 事件
+    chrome.tabs.get(tabId, (tab) => {
+      if (chrome.runtime.lastError) {
+        cleanup();
+        resolve(false);
+        return;
+      }
+      if (tab && tab.status === 'complete') {
+        cleanup();
+        resolve(true);
+      }
+    });
+  });
 }
 
 // 修改后的 openSearchTabs 函数
@@ -598,19 +630,16 @@ async function openSearchTabs(query, checkedSites = null) {
           active: true
       });
 
-      // 等待新标签页加载完成
-      chrome.tabs.onUpdated.addListener(function listener(tabId, info) {
-          if (tabId === newTab.id && info.status === 'complete') {
-              chrome.tabs.onUpdated.removeListener(listener);
-              
-              // 向新标签页发送消息,传递查询词和需要加载的站点信息
-              chrome.tabs.sendMessage(newTab.id, {
-                  type: 'loadIframes',
-                  query: query,
-                  sites: iframeSites
-              });
-          }
-      });
+      // 等待新标签页加载完成，防止泄露 (P1)
+      const loaded = await waitForTabComplete(newTab.id);
+      if (loaded) {
+          // 向新标签页发送消息,传递查询词和需要加载的站点信息
+          chrome.tabs.sendMessage(newTab.id, {
+              type: 'loadIframes',
+              query: query,
+              sites: iframeSites
+          });
+      }
   }
 }
 

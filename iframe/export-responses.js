@@ -1081,9 +1081,15 @@ function requestIframeContent(iframe, siteName) {
     const timeout = setTimeout(() => {
       reject(new Error('请求超时'));
     }, 5000);
-    
-    const messageHandler = (event) => {
+
+    const messageHandler = async (event) => {
       if (event.data.type === 'EXTRACTED_CONTENT' && event.data.siteName === siteName) {
+        // 安全校验（S1）：仅接受来自目标 iframe 且 origin 可信的消息
+        const trusted = await MessagingSecurity.isTrustedMessage(event, { expectedSource: iframe.contentWindow });
+        if (!trusted) {
+          console.warn(`[export] 拒绝 ${siteName} 的 EXTRACTED_CONTENT：来源不可信`, event.origin);
+          return;
+        }
         clearTimeout(timeout);
         window.removeEventListener('message', messageHandler);
         // 返回包含内容和URL的对象
@@ -1093,14 +1099,24 @@ function requestIframeContent(iframe, siteName) {
         });
       }
     };
-    
+
     window.addEventListener('message', messageHandler);
-    
-    // 发送提取内容请求
-    iframe.contentWindow.postMessage({
-      type: 'EXTRACT_CONTENT',
-      siteName: siteName
-    }, '*');
+
+    // 发送提取内容请求（S2：用具体 origin 取代 '*'）
+    let iframeOrigin = null;
+    try {
+      const o = iframe.contentWindow.location.origin;
+      if (o && o !== 'null' && o !== 'about:blank') iframeOrigin = o;
+    } catch (e) { /* 跨域 */ }
+    if (!iframeOrigin && iframe.src) {
+      try { iframeOrigin = new URL(iframe.src).origin; } catch (e2) { /* ignore */ }
+    }
+    if (iframeOrigin) {
+      iframe.contentWindow.postMessage({
+        type: 'EXTRACT_CONTENT',
+        siteName: siteName
+      }, iframeOrigin);
+    }
   });
 }
 
@@ -1218,20 +1234,22 @@ function generateExportContent(responses, format) {
 <body>
     <h1>AI回答汇总</h1>
     <div class="meta">
-        <p><strong>查询内容:</strong> ${query}</p>
-        <p><strong>导出时间:</strong> ${timestamp}</p>
+        <p><strong>查询内容:</strong> ${escapeHtmlExport(query)}</p>
+        <p><strong>导出时间:</strong> ${escapeHtmlExport(timestamp)}</p>
         <p><strong>包含站点:</strong> ${responses.length} 个</p>
     </div>`;
-    
+
     responses.forEach((response, responseIndex) => {
-      content += `<h2>${response.siteName}</h2>`;
-      
+      content += `<h2>${escapeHtmlExport(response.siteName)}</h2>`;
+
       // 添加 iframe 的完整 URL
       if (response.url && response.url !== 'unknown') {
-        content += `<p><strong>URL:</strong> <a href="${response.url}" target="_blank">${response.url}</a></p>`;
+        const safeUrl = escapeHtmlExport(response.url);
+        content += `<p><strong>URL:</strong> <a href="${safeUrl}" target="_blank">${safeUrl}</a></p>`;
       }
-      
-      content += `<div>${response.content.replace(/\n/g, '<br>')}</div>`;
+
+      // 内容转义后再恢复换行（S5：防止 response.content 中的 HTML 被当作标记执行）
+      content += `<div>${escapeHtmlExport(response.content).replace(/\n/g, '<br>')}</div>`;
       
       // 提取方法只在控制台输出，不显示给用户
       if (response.extractionMethod) {
@@ -1303,6 +1321,17 @@ function downloadFile(content, filename, mimeType) {
   document.body.removeChild(a);
   
   URL.revokeObjectURL(url);
+}
+
+// HTML 转义工具（S5）：用于把不可信字符串安全嵌入 HTML 模板
+function escapeHtmlExport(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // HTML到Markdown转换函数（优化版）

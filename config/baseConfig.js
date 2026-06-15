@@ -192,65 +192,54 @@ function compareVersions(version1, version2) {
   return 0;
 }
 
-// 远程配置更新功能（仅更新配置数据，不更新代码）
+// 远程配置更新功能（S4：已移除远程拉取，改为本地打包配置随版本发布）
+// 出于供应链安全考虑，不再从 GitHub raw 拉取配置。配置更新随扩展版本发布。
+// 这些方法保留以兼容 background.js 的调用，但仅读取本地打包的 siteHandlers.json。
 const RemoteConfigManager = {
-  // 远程配置服务器 - 根据环境选择不同的URL
+  // 已废弃：保留属性以避免引用错误，但不再使用
   get configUrl() {
-    // 如果 DEV_CONFIG 对象存在，使用环境配置
-    if (typeof DEV_CONFIG !== 'undefined' && DEV_CONFIG.REMOTE_CONFIG_URL) {
-      return DEV_CONFIG.IS_PRODUCTION 
-        ? 'https://raw.githubusercontent.com/taoAIGC/AI-Shortcuts/main/config/siteHandlers.json'
-        : DEV_CONFIG.REMOTE_CONFIG_URL;
-    }
-    // 否则使用默认的生产环境URL
-    return 'https://raw.githubusercontent.com/taoAIGC/AI-Shortcuts/main/config/siteHandlers.json';
+    return null;
   },
-  
-  // 检查并更新配置
+
+  // 检查并更新配置（S4：仅对比本地打包配置与已存储配置的版本）
   async checkAndUpdateConfig() {
     try {
-      const response = await fetch(this.configUrl);
+      // 从本地打包文件读取配置
+      const response = await fetch(chrome.runtime.getURL('config/siteHandlers.json'));
       if (!response.ok) {
-        throw new Error(`配置服务器错误: ${response.status}`);
+        throw new Error(`读取本地配置文件失败: ${response.status}`);
       }
-      
-      const remoteConfig = await response.json();
-      const remoteVersion = remoteConfig.version || Date.now();
-      
-      // 获取本地版本
-      const localVersion = await this.getLocalVersion();
-      
-      
-      // 使用版本号比较函数
-      const versionComparison = compareVersions(remoteVersion, localVersion);
-      
+      const localConfig = await response.json();
+      const localFileVersion = localConfig.version || Date.now();
+
+      // 获取已存储的版本
+      const storedVersion = await this.getLocalVersion();
+
+      const versionComparison = compareVersions(localFileVersion, storedVersion);
+
       if (versionComparison > 0) {
-        console.log(`发现新版本的站点配置 (${localVersion} -> ${remoteVersion})，准备更新...`);
-        
-        // 更新本地存储的配置
-        await this.updateLocalConfig(remoteConfig);
-        
+        console.log(`本地打包配置版本较新 (${storedVersion} -> ${localFileVersion})，准备更新存储`);
         return {
           hasUpdate: true,
-          config: remoteConfig,
-          version: remoteVersion,
-          oldVersion: localVersion,
+          config: localConfig,
+          version: localFileVersion,
+          oldVersion: storedVersion,
           versionComparison: versionComparison
         };
       } else if (versionComparison < 0) {
-        console.log(`远程版本 (${remoteVersion}) 比本地版本 (${localVersion}) 旧，跳过更新`);
-        return { 
-          hasUpdate: false, 
-          reason: 'remote_older',
-          remoteVersion: remoteVersion,
-          localVersion: localVersion
+        console.log(`存储版本 (${storedVersion}) 比本地打包版本 (${localFileVersion}) 新，跳过更新`);
+        return {
+          hasUpdate: false,
+          reason: 'stored_newer',
+          localFileVersion: localFileVersion,
+          storedVersion: storedVersion
         };
       } else {
-        console.log(`版本号相同 (${remoteVersion})，无需更新`);
-        return { 
-          hasUpdate: false, 
+        console.log(`版本号相同 (${localFileVersion})，无需更新`);
+        return {
+          hasUpdate: false,
           reason: 'same_version',
-          version: remoteVersion
+          version: localFileVersion
         };
       }
     } catch (error) {
@@ -258,7 +247,7 @@ const RemoteConfigManager = {
       return { hasUpdate: false, error: error.message };
     }
   },
-  
+
   // 获取本地版本
   async getLocalVersion() {
     try {
@@ -267,7 +256,7 @@ const RemoteConfigManager = {
       if (result.siteConfigVersion) {
         return result.siteConfigVersion;
       }
-      
+
       // 2. 如果存储中没有版本，尝试从本地文件获取
       console.log('存储中无版本信息，尝试从本地文件获取版本...');
       try {
@@ -282,7 +271,7 @@ const RemoteConfigManager = {
       } catch (error) {
         console.error('从本地文件获取版本失败:', error);
       }
-      
+
       return 0;
     } catch (error) {
       console.error('获取本地版本失败:', error);

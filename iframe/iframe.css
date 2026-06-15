@@ -8,23 +8,25 @@ html {
 }
 
 .iframe-container {
-  border: 1px solid #ddd;
+  background-color: #fff;
   margin: 0;
-  border-radius: 8px;
   overflow: hidden;
   scroll-margin-top: 0;
   position: relative; /* 为悬浮按钮提供定位上下文 */
+  border-left: 1px solid #ddd;
+  border-top: none;
+  box-sizing: border-box;
 }
 
 /* header 改为右上角悬浮控件，不再占顶部空间 */
 .iframe-header {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 4px;
+  right: 4px;
   z-index: 5;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   padding: 4px 8px;
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(8px);
@@ -66,8 +68,9 @@ html {
   color: #000;
 }
 
-/* 鼠标悬停在 iframe 容器上时显示悬浮控件 */
-.iframe-container:hover .iframe-header {
+/* 鼠标悬停在 iframe 容器上或内部触发 hover 状态时显示悬浮控件 */
+.iframe-container:hover .iframe-header,
+.iframe-container.js-hovered .iframe-header {
   opacity: 1;
   pointer-events: auto;
 }
@@ -98,7 +101,7 @@ html {
 #iframes-container {
     display: grid;
     grid-template-columns: repeat(var(--columns, 2), 1fr);
-    gap: 8px;
+    gap: 0;
     margin: 0;
     padding: 0;
     min-height: 100vh;
@@ -108,7 +111,14 @@ html {
 /* 在侧边栏模式下默认显示1列 */
 @media (max-width: 500px) {
     #iframes-container {
-        grid-template-columns: repeat(var(--columns, 1), 1fr);
+        grid-template-columns: repeat(var(--columns, 1), 1fr) !important;
+    }
+    #iframes-container .iframe-container {
+        border-left: none !important;
+        border-top: 1px solid #ddd !important;
+    }
+    #iframes-container .iframe-container:first-child {
+        border-top: none !important;
     }
 }
 
@@ -199,6 +209,48 @@ html {
 
 #iframes-container[data-columns="4"] {
     grid-template-columns: repeat(4, 1fr);
+}
+
+/* 动态清除每行第一列的左边框，并在非第一行添加上边距线 */
+
+/* 1列布局 */
+#iframes-container[data-columns="1"] .iframe-container {
+    border-left: none;
+}
+#iframes-container[data-columns="1"] .iframe-container:nth-child(n+2) {
+    border-top: 1px solid #ddd;
+}
+
+/* 2列布局 */
+#iframes-container[data-columns="2"] .iframe-container:nth-child(2n+1) {
+    border-left: none;
+}
+#iframes-container[data-columns="2"] .iframe-container:nth-child(n+3) {
+    border-top: 1px solid #ddd;
+}
+
+/* 3列布局 */
+#iframes-container[data-columns="3"] .iframe-container:nth-child(3n+1) {
+    border-left: none;
+}
+#iframes-container[data-columns="3"] .iframe-container:nth-child(n+4) {
+    border-top: 1px solid #ddd;
+}
+
+/* 4列布局 */
+#iframes-container[data-columns="4"] .iframe-container:nth-child(4n+1) {
+    border-left: none;
+}
+#iframes-container[data-columns="4"] .iframe-container:nth-child(n+5) {
+    border-top: 1px solid #ddd;
+}
+
+/* 默认未设置 data-columns 时（默认为 2 列） */
+#iframes-container:not([data-columns]) .iframe-container:nth-child(2n+1) {
+    border-left: none;
+}
+#iframes-container:not([data-columns]) .iframe-container:nth-child(n+3) {
+    border-top: 1px solid #ddd;
 }
 
 .settings-icon-container {
@@ -295,6 +347,27 @@ html {
 }
 
 .copy-link-btn svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+}
+
+.refresh-btn {
+    width: 22px;
+    height: 22px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    padding: 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    line-height: 1;
+}
+
+.refresh-btn svg {
     width: 14px;
     height: 14px;
     display: block;
@@ -1196,7 +1269,6 @@ body.has-live-summary-drawer-open #liveSummaryDrawerToggle {
     padding: 12px;
     border: 1px solid #eee;
     border-radius: 10px;
-    background: #fafafa;
     max-height: 50vh;
     overflow-y: auto;
 }
@@ -1236,12 +1308,23 @@ body.has-live-summary-drawer-open #liveSummaryDrawerToggle {
 }
 
 .drag-placeholder {
-    background: #e8f5e9;
-    border: 2px dashed #00a240;
-    border-radius: 6px;
-    height: 32px;
-    opacity: 0.5;
-    margin-bottom: 2px;
+    position: relative;
+    height: 4px;
+    background: #00a240;
+    border-radius: 2px;
+    margin: 8px 0;
+    box-sizing: border-box;
+}
+
+.drag-placeholder::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: -3px;
+    width: 10px;
+    height: 10px;
+    background: #00a240;
+    border-radius: 50%;
 }
 
 .site-item .drag-handle {
@@ -1777,4 +1860,61 @@ button.query-suggestion-more-btn svg {
 @keyframes summary-skeleton-loading {
     0% { background-position: 100% 50%; }
     100% { background-position: 0 50%; }
+}
+
+/* 暂无启用站点提示样式 */
+.no-sites-placeholder {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 100px);
+    width: 100%;
+    padding: 40px 20px;
+    box-sizing: border-box;
+    text-align: center;
+    background: transparent;
+}
+
+.no-sites-placeholder h2 {
+    font-size: 22px;
+    color: #333;
+    margin: 0 0 12px 0;
+    font-weight: 600;
+}
+
+.no-sites-placeholder p {
+    font-size: 14px;
+    color: #666;
+    margin: 0 0 24px 0;
+    max-width: 400px;
+    line-height: 1.6;
+}
+
+.no-sites-btn {
+    background: linear-gradient(135deg, #00a240, #008133);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    font-size: 15px;
+    font-weight: 500;
+    border-radius: 25px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0, 162, 64, 0.2);
+    transition: all 0.2s ease;
+}
+
+.no-sites-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 162, 64, 0.3);
+}
+
+.no-sites-btn:active {
+    transform: translateY(0);
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
 }

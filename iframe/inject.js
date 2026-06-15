@@ -1,17 +1,37 @@
-// 控制调试日志输出，生产模式下屏蔽普通的 console.log 和 console.warn 以优化性能
+// 控制调试日志输出
 const DEBUG_MODE = false;
-if (!DEBUG_MODE) {
-  console.log = function() {};
-  console.warn = function() {};
-}
 
-console.log('🎯 inject.js 脚本已加载');
 
 // 每个 iframe（每个注入实例）独立保存本次 PK 的历史上下文
 let __aiCompareHistoryContext = {
   historyId: null,
   siteName: null
 };
+
+// 记录扩展父页面的 origin（由第一条受信任的入站消息确立），用于安全回传消息（S2）
+// inject.js 运行在第三方 AI 站点，无法直接读取 window.parent.location.origin（跨域），
+// 但通过来源校验（MessagingSecurity.isFromExtension）已确认父页面是扩展页，
+// 其 event.origin 形如 chrome-extension://<id>，可安全缓存并作为 targetOrigin。
+let __parentExtensionOrigin = null;
+function getParentExtensionOrigin() {
+  return __parentExtensionOrigin;
+}
+// 向扩展父页面安全发送消息（S2：避免使用 '*'）
+function postToParent(message) {
+  const origin = getParentExtensionOrigin();
+  if (!origin) {
+    // 尚未收到过来自父页面的消息，无法确定 origin，拒绝发送
+    console.warn('[inject] 拒绝向父页面发送消息：扩展 origin 未知');
+    return false;
+  }
+  try {
+    window.parent.postMessage(message, origin);
+    return true;
+  } catch (e) {
+    console.error('[inject] 向父页面发送消息失败:', e);
+    return false;
+  }
+}
 
 // 动态检查是否在 AI 站点中运行
 async function isAISite() {
@@ -73,24 +93,21 @@ async function isAISite() {
 }
 
 // 等待页面加载完成后检查
+// 注意：isAISiteChecked 和 isAISiteResult 缓存的初始值都是 false。
+// 不要在 document_start 预初始化 isAISite()，因为此时 chrome.storage 数据可能尚未就绪，
+// 会导致 isAISite() 返回 false 并永久缓存，后续消息处理器收到真实消息时也会被错误拦截。
+// （修复：移除预初始化，每次在消息处理器中重新检查；若缓存结果为 false 则再查一次）
 let isAISiteChecked = false;
 let isAISiteResult = false;
 
-// 启动时立即开始异步检测 AI 站点，避免每次收到 message 时都触发微任务开销
-(async () => {
-  try {
-    isAISiteResult = await isAISite();
-    isAISiteChecked = true;
-  } catch (e) {
-    console.error('初始化检测 AI 站点出错:', e);
-  }
-})();
-
 async function checkAISite() {
-  if (!isAISiteChecked) {
-    isAISiteResult = await isAISite();
-    isAISiteChecked = true;
+  // 如果已缓存且结果为 true，直接返回（避免重复异步调用）
+  // 如果结果为 false，重新检查（可能是早期初始化失败）
+  if (isAISiteChecked && isAISiteResult) {
+    return isAISiteResult;
   }
+  isAISiteResult = await isAISite();
+  isAISiteChecked = true;
   return isAISiteResult;
 }
 
@@ -434,8 +451,17 @@ async function executeClick(step) {
     const retryInterval = step.retryInterval || 200;
     let attempts = 0;
     
+    // 判断元素是否被禁用：(1) HTML disabled 属性（<button>/<input> 等）(2) CSS 'disabled' class（<div> 等）
+    const isElementDisabled = (el) => {
+      if (el.disabled) return true;                       // 表单元素 disabled 属性
+      if (el.classList && el.classList.contains('disabled')) return true; // CSS disabled 类
+      // aria-disabled 属性
+      if (el.getAttribute('aria-disabled') === 'true') return true;
+      return false;
+    };
+    
     const tryClick = () => {
-      if (!element.disabled) {
+      if (!isElementDisabled(element)) {
         element.click();
         console.log('点击元素:', foundSelector);
         return;
@@ -443,7 +469,7 @@ async function executeClick(step) {
       
       attempts++;
       if (attempts < maxAttempts) {
-        console.log(`按钮被禁用，${retryInterval}ms后重试 (${attempts}/${maxAttempts})`);
+        console.log(`按钮被禁用（disabled/disabled类），${retryInterval}ms后重试 (${attempts}/${maxAttempts})`);
         setTimeout(tryClick, retryInterval);
       } else {
         console.error('达到最大尝试次数，按钮仍然被禁用');
@@ -549,42 +575,45 @@ async function executeSetValue(step, query) {
                            element.getAttribute('data-lexical-editor') === 'true';
     
     if (isLexicalEditor) {
-      // 处理 Lexical 编辑器：尝试多种方法更新内容
+      // 处理 Lexical 编辑器
       console.log('检测到 Lexical 编辑器，尝试更新内容');
       
-      // 方法1: 尝试通过 Lexical 的内部 API 更新
-      let updatedViaAPI = false;
+      // 方法1: 尝试聚焦 + execCommand('insertText') 插入文本
+      // 这是最可靠的方式：execCommand 会触发原生 beforeinput 事件，
+      // Lexical 监听 beforeinput 并同步内部状态，再触发 React 更新。
+      // 注意：Lexical 可能会 intercept beforeinput 并 preventDefault，
+      // 导致 execCommand 返回 false，但文字已被 Lexical 内部处理。
+      // 因此我们检查 DOM 内容而非 execCommand 的返回值。
+      let contentSet = false;
       try {
-        // Lexical 编辑器通常会在元素上存储编辑器实例
-        const editorKey = Object.keys(element).find(key => 
-          key.includes('__lexical') || key.includes('lexical') || key.includes('editor')
-        );
+        element.focus();
         
-        if (editorKey && element[editorKey]) {
-          const editor = element[editorKey];
-          if (editor.update && typeof editor.update === 'function') {
-            editor.update(() => {
-              const root = editor.getRootElement();
-              if (root) {
-                root.innerHTML = '';
-                const p = document.createElement('p');
-                const span = document.createElement('span');
-                span.setAttribute('data-lexical-text', 'true');
-                span.textContent = query;
-                p.appendChild(span);
-                root.appendChild(p);
-              }
-            });
-            updatedViaAPI = true;
-            console.log('通过 Lexical API 更新内容');
-          }
+        // 清空现有内容：选中所有文本后删除
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        
+        // 先删除现有内容
+        document.execCommand('delete', false, null);
+        
+        // 然后插入新文本（触发原生 beforeinput/input 事件链）
+        document.execCommand('insertText', false, query);
+        
+        // 检查 DOM 内容是否已更新（Lexical 可能拦截了 beforeinput 但自己处理了编辑）
+        if (element.textContent && element.textContent.trim() === query.trim()) {
+          contentSet = true;
+          console.log('Lexical: 通过 execCommand 设置内容成功');
+        } else {
+          console.log('Lexical: execCommand 已执行，但 DOM 未更新，尝试备用方法');
         }
-      } catch (apiError) {
-        console.log('Lexical API 方法失败，尝试其他方法:', apiError);
+      } catch (execError) {
+        console.log('Lexical: execCommand 方法失败:', execError);
       }
       
-      // 方法2: 如果 API 方法失败，使用 DOM 操作 + 事件触发
-      if (!updatedViaAPI) {
+      // 方法2: 如果 execCommand 失败，使用 DOM 操作 + 事件触发
+      if (!contentSet) {
         // 先聚焦元素
         element.focus();
         
@@ -598,7 +627,6 @@ async function executeSetValue(step, query) {
           }
           const pElement = pElements[0];
           
-          // 清空并创建新内容
           if (query.trim()) {
             pElement.innerHTML = '';
             const span = document.createElement('span');
@@ -609,7 +637,6 @@ async function executeSetValue(step, query) {
             pElement.innerHTML = '';
           }
         } else {
-          // 如果没有 p 元素，创建完整的 Lexical 结构
           element.innerHTML = '';
           const pElement = document.createElement('p');
           if (query.trim()) {
@@ -621,105 +648,70 @@ async function executeSetValue(step, query) {
           element.appendChild(pElement);
         }
         
-        // 触发多种事件让 Lexical 识别变化
-        // 1. 触发 input 事件
-        const inputEvent = new InputEvent('input', {
+        // 触发 beforeinput 事件（Lexical 监听此事件来同步状态）
+        element.dispatchEvent(new InputEvent('beforeinput', {
           bubbles: true,
           cancelable: true,
           inputType: 'insertText',
           data: query
-        });
-        element.dispatchEvent(inputEvent);
+        }));
         
-        // 2. 触发 beforeinput 事件（Lexical 可能监听此事件）
-        const beforeInputEvent = new InputEvent('beforeinput', {
+        // 触发 input 事件
+        element.dispatchEvent(new InputEvent('input', {
           bubbles: true,
           cancelable: true,
           inputType: 'insertText',
           data: query
-        });
-        element.dispatchEvent(beforeInputEvent);
-        
-        // 3. 触发 compositionstart, compositionupdate, compositionend（模拟输入法输入）
-        element.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
-        element.dispatchEvent(new CompositionEvent('compositionupdate', { 
-          bubbles: true, 
-          data: query 
-        }));
-        element.dispatchEvent(new CompositionEvent('compositionend', { 
-          bubbles: true, 
-          data: query 
         }));
         
-        // 4. 触发 change 事件
-        const changeEvent = new Event('change', {
+        // 模拟输入法输入完成事件
+        element.dispatchEvent(new CompositionEvent('compositionend', {
+          bubbles: true,
+          data: query
+        }));
+        
+        // 触发 change 事件
+        element.dispatchEvent(new Event('change', {
           bubbles: true,
           cancelable: true
-        });
-        element.dispatchEvent(changeEvent);
+        }));
         
-        // 5. 尝试使用 execCommand（如果浏览器支持）
-        let execCommandSuccess = false;
+        // 用 execCommand 再次尝试（此时 DOM 已准备就绪）
         try {
-          // 选中所有内容
-          const range = document.createRange();
-          range.selectNodeContents(element);
-          const selection = window.getSelection();
-          selection.removeAllRanges();
-          selection.addRange(range);
-          
-          // 使用 insertText 命令
+          const sel2 = window.getSelection();
+          const range2 = document.createRange();
+          range2.selectNodeContents(element);
+          sel2.removeAllRanges();
+          sel2.addRange(range2);
           if (document.execCommand('insertText', false, query)) {
-            console.log('使用 execCommand 插入文本成功');
-            execCommandSuccess = true;
+            contentSet = true;
+            console.log('Lexical: 通过二次 execCommand 插入文本成功');
           }
-        } catch (execError) {
-          console.log('execCommand 方法失败:', execError);
+        } catch (e2) {
+          console.log('Lexical: 二次 execCommand 也失败:', e2);
         }
         
-        // 6. 如果 execCommand 失败，尝试通过 DataTransfer 模拟粘贴（作为最后手段）
-        if (!execCommandSuccess && query.trim()) {
+        // 最后手段：模拟粘贴事件
+        if (!contentSet && query.trim()) {
           try {
-            // 先聚焦并选中所有内容
             element.focus();
-            const range = document.createRange();
-            range.selectNodeContents(element);
-            const selection = window.getSelection();
-            selection.removeAllRanges();
-            selection.addRange(range);
-            
-            // 创建 DataTransfer 对象模拟粘贴
             const dataTransfer = new DataTransfer();
             dataTransfer.setData('text/plain', query);
             
-            // 触发 paste 事件
-            const pasteEvent = new ClipboardEvent('paste', {
-              clipboardData: dataTransfer,
-              bubbles: true,
-              cancelable: true
-            });
-            
-            // 先触发 beforeinput
-            const beforeInputEvent = new InputEvent('beforeinput', {
+            element.dispatchEvent(new InputEvent('beforeinput', {
               bubbles: true,
               cancelable: true,
               inputType: 'insertFromPaste',
               data: query
-            });
-            element.dispatchEvent(beforeInputEvent);
+            }));
             
-            // 触发 paste 事件
-            const pasteHandled = element.dispatchEvent(pasteEvent);
-            
-            if (pasteHandled) {
-              console.log('通过模拟粘贴事件完成');
-            } else {
-              // 如果 paste 事件被阻止，尝试直接使用 insertText
-              document.execCommand('insertText', false, query);
-              console.log('通过 insertText 命令完成');
-            }
+            element.dispatchEvent(new ClipboardEvent('paste', {
+              clipboardData: dataTransfer,
+              bubbles: true,
+              cancelable: true
+            }));
           } catch (fallbackError) {
-            console.log('备用方法失败:', fallbackError);
+            console.log('Lexical: 模拟粘贴失败:', fallbackError);
           }
         }
         
@@ -727,34 +719,78 @@ async function executeSetValue(step, query) {
       }
     } else {
       // 处理普通 contenteditable 元素（支持 Tiptap/ProseMirror 等编辑器）
-      // 查找所有 p 元素，清空并替换为新内容
-      const pElements = element.querySelectorAll('p');
-      
-      if (pElements.length > 0) {
-        // 如果存在 p 元素，清空所有并只保留第一个
-        if (pElements.length > 1) {
-          // 如果有多个 p 元素，删除多余的
-          for (let i = 1; i < pElements.length; i++) {
-            pElements[i].remove();
+      let success = false;
+      try {
+        element.focus();
+        
+        // 选中所有内容以便替换
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        
+        // 使用 insertText 命令，这样编辑器（如 Tiptap, Slate 等）可以监听到并同步内部状态
+        if (document.execCommand('insertText', false, query)) {
+          success = true;
+          console.log('contenteditable: 通过 execCommand 成功设置内容');
+        }
+      } catch (e) {
+        console.warn('contenteditable: execCommand 设置内容失败，将回退到 DOM 操作方式', e);
+      }
+
+      if (!success) {
+        // 查找所有 p 元素，清空并替换为新内容
+        const pElements = element.querySelectorAll('p');
+        
+        if (pElements.length > 0) {
+          // 如果存在 p 元素，清空所有并只保留第一个
+          if (pElements.length > 1) {
+            // 如果有多个 p 元素，删除多余的
+            for (let i = 1; i < pElements.length; i++) {
+              pElements[i].remove();
+            }
+          }
+          const pElement = pElements[0];
+          // 移除空状态类（如 is-empty, is-editor-empty）
+          pElement.classList.remove('is-empty', 'is-editor-empty');
+          // 设置文本内容
+          pElement.innerText = query;
+          // 如果没有内容，保留空 p 元素，但移除占位符类
+          if (!query.trim()) {
+            pElement.innerHTML = '';
+          }
+        } else {
+          // 如果没有 p 元素，创建一个新的
+          element.innerHTML = '<p></p>';
+          const newP = element.querySelector('p');
+          if (newP) {
+            newP.innerText = query;
           }
         }
-        const pElement = pElements[0];
-        // 移除空状态类（如 is-empty, is-editor-empty）
-        pElement.classList.remove('is-empty', 'is-editor-empty');
-        // 设置文本内容
-        pElement.innerText = query;
-        // 如果没有内容，保留空 p 元素，但移除占位符类
-        if (!query.trim()) {
-          pElement.innerHTML = '';
-        }
-      } else {
-        // 如果没有 p 元素，创建一个新的
-        element.innerHTML = '<p></p>';
-        const newP = element.querySelector('p');
-        if (newP) {
-          newP.innerText = query;
-        }
       }
+
+      // 额外触发输入和变更事件，确保框架能够捕获到变化
+      // 使用 InputEvent（包含 inputType + data）而非普通 Event，
+      // 因为许多框架（Slate、Tiptap 等）通过 beforeinput/input 事件的
+      // inputType/data 属性来判断状态变更，普通 Event 无法触发状态同步。
+      element.dispatchEvent(new InputEvent('beforeinput', {
+        bubbles: true,
+        cancelable: true,
+        inputType: 'insertText',
+        data: query
+      }));
+      element.dispatchEvent(new InputEvent('input', {
+        bubbles: true,
+        cancelable: true,
+        inputType: 'insertText',
+        data: query
+      }));
+      element.dispatchEvent(new CompositionEvent('compositionend', {
+        bubbles: true,
+        data: query
+      }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
     }
   } else if (step.inputType === 'special') {
     // 使用配置驱动的特殊处理
@@ -811,7 +847,19 @@ async function executeSetValue(step, query) {
     console.log('Angular FormControl 值已设置并触发事件');
   } else {
     // 普通输入框
-    element.value = query;
+    try {
+      // 针对 React 15/16+ 覆盖的 value setter 进行处理，直接调用原生 setter 触发变更追踪
+      const prototype = Object.getPrototypeOf(element);
+      const valueDescriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
+      if (valueDescriptor && valueDescriptor.set) {
+        valueDescriptor.set.call(element, query);
+      } else {
+        element.value = query;
+      }
+    } catch (e) {
+      console.warn('通过 Native Value Setter 设置失败，将回退直接赋值:', e);
+      element.value = query;
+    }
     
     // 触发 input 事件确保框架能够检测到变化
     const inputEvent = new InputEvent('input', {
@@ -821,6 +869,9 @@ async function executeSetValue(step, query) {
       data: query
     });
     element.dispatchEvent(inputEvent);
+
+    // 额外触发 change 事件
+    element.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
   console.log('设置元素值:', foundSelector);
@@ -862,32 +913,32 @@ async function handleLexicalEditor(config, query) {
   if (!container) {
     throw new Error(`未找到容器元素: ${config.containerSelector}`);
   }
-  
+
   // 清空容器
   if (config.clearContainer !== false) {
     container.innerHTML = '';
   }
-  
+
   // 创建元素
   const element = document.createElement(config.elementType || 'span');
-  
+
   // 设置属性
   if (config.attributes) {
     Object.entries(config.attributes).forEach(([key, value]) => {
       element.setAttribute(key, value);
     });
   }
-  
-  // 设置内容
+
+  // 安全：统一使用 textContent 写入 query，避免 HTML 注入（S3）
+  // 不再支持 contentType === 'innerHTML'，若配置中存在该值将被忽略并记录警告
   if (config.contentType === 'innerHTML') {
-    element.innerHTML = query;
-  } else {
-    element.textContent = query;
+    console.warn('⚠️ handleLexicalEditor: contentType=innerHTML 已被禁用（安全原因），改用 textContent');
   }
-  
+  element.textContent = query;
+
   // 添加到容器
   container.appendChild(element);
-  
+
   console.log('Lexical 编辑器内容已设置');
 }
 
@@ -920,18 +971,20 @@ async function handleCustomElement(config, query) {
   if (!element) {
     throw new Error(`未找到元素: ${config.selector}`);
   }
-  
+
   // 执行自定义方法
+  // 安全：method=innerHTML 已禁用（S3），统一降级为 textContent
   if (config.method === 'setAttribute') {
     element.setAttribute(config.attribute, query);
   } else if (config.method === 'setProperty') {
     element[config.property] = query;
   } else if (config.method === 'innerHTML') {
-    element.innerHTML = query;
+    console.warn('⚠️ handleCustomElement: method=innerHTML 已被禁用（安全原因），改用 textContent');
+    element.textContent = query;
   } else if (config.method === 'textContent') {
     element.textContent = query;
   }
-  
+
   console.log('自定义元素内容已设置');
 }
 
@@ -1220,10 +1273,10 @@ async function executeReplace(step, query) {
 // 根据配置创建DOM元素
 function createElementFromConfig(config, query) {
   console.log('🔧 createElementFromConfig 开始，配置:', config, '查询:', query);
-  
+
   const element = document.createElement(config.tag);
   console.log('🔧 创建元素:', config.tag, element);
-  
+
   // 设置属性
   if (config.attributes) {
     console.log('🔧 设置属性:', config.attributes);
@@ -1232,7 +1285,7 @@ function createElementFromConfig(config, query) {
       console.log(`🔧 设置属性 ${key} = ${value}`);
     });
   }
-  
+
   // 设置文本内容
   if (config.text) {
     // 替换 $query 为实际查询内容
@@ -1240,15 +1293,15 @@ function createElementFromConfig(config, query) {
     console.log('🔧 设置文本内容:', text);
     element.textContent = text;
   }
-  
-  // 设置HTML内容
+
+  // 安全：config.html 中的 $query 必须先 HTML 转义再插入，防止注入（S3）
   if (config.html) {
-    // 替换 $query 为实际查询内容
-    const html = config.html.replace(/\$query/g, query);
-    console.log('🔧 设置HTML内容:', html);
+    const safeQuery = escapeHtmlForInsert(query);
+    const html = config.html.replace(/\$query/g, safeQuery);
+    console.log('🔧 设置HTML内容（$query 已转义）:', html);
     element.innerHTML = html;
   }
-  
+
   // 递归创建子元素
   if (config.children && Array.isArray(config.children)) {
     console.log('🔧 创建子元素，数量:', config.children.length);
@@ -1258,9 +1311,21 @@ function createElementFromConfig(config, query) {
       element.appendChild(childElement);
     });
   }
-  
+
   console.log('🔧 最终创建的元素:', element.outerHTML);
   return element;
+}
+
+// 将用户输入的 query 转义为可安全插入 HTML 上下文的文本（S3）
+// 用于 config.html.replace(/\$query/g, safeQuery) 场景
+function escapeHtmlForInsert(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // 执行等待操作
@@ -1281,7 +1346,7 @@ async function executeCustom(step, query) {
       }
     }
   } else if (step.customAction === 'send_message') {
-    window.parent.postMessage({ type: 'message_received', originalType: step.messageType }, '*');
+    postToParent({ type: 'message_received', originalType: step.messageType });
   } else if (step.customAction === 'retry_click') {
     // 已废弃：retry_click 功能已合并到 click action 中
     console.warn('retry_click 已废弃，请使用 click action 配合 retryOnDisabled 参数');
@@ -1369,34 +1434,22 @@ window.addEventListener('message', async function(event) {
     if (!event.data || typeof event.data !== 'object') {
         return; // 静默跳过非对象消息
     }
-    
-    // 如果已经检测完，则同步判断结果，完全避免 await 的微任务开销；否则才使用 await 检测
-    if (!isAISiteChecked) {
-        isAISiteResult = await isAISite();
-        isAISiteChecked = true;
-    }
-    if (!isAISiteResult) {
-        return; // 不在 AI 站点中，跳过所有处理
-    }
-    
-    // 检查是否是 AIShortcuts 扩展的消息
+
+    // 检查是否是 AIShortcuts 扩展的消息（静态、纯同步过滤，优先执行 P6）
     if (!event.data.query && !event.data.type && !event.data.fileData) {
         return; // 静默跳过缺少必要字段的消息
     }
-    
+
     // 过滤掉来自 AI 站点的内部消息
-    if (event.data.action || event.data.payload || event.data._stripeJsV3 || 
-        event.data.sourceFrameId || event.data.targetFrameId || 
+    if (event.data.action || event.data.payload || event.data._stripeJsV3 ||
+        event.data.sourceFrameId || event.data.targetFrameId ||
         event.data.controllerAppFrameId) {
         return; // 静默跳过 AI 站点的内部消息
     }
-    
-    // 只记录有效的 AIShortcuts 消息
-    console.log('🎯🎯🎯 inject.js 收到 AIShortcuts 消息:', event.data, '来源:', event.origin);
-    
+
     // 过滤掉其他扩展的消息（如广告拦截器等）
     if (event.data.type && (
-        event.data.type.includes('ad-finder') || 
+        event.data.type.includes('ad-finder') ||
         event.data.type.includes('wxt') ||
         event.data.type.includes('content-script-started') ||
         event.data.type.includes('ads#') ||
@@ -1410,14 +1463,54 @@ window.addEventListener('message', async function(event) {
     )) {
         return;
     }
-    
-    // 只处理 AIShortcuts 扩展的特定消息类型
+
+    // 只处理 AIShortcuts 扩展的特定消息类型（静态白名单过滤）
     const validMultiAITypes = ['TRIGGER_PASTE', 'search', 'EXTRACT_CONTENT', 'SET_HISTORY_CONTEXT', 'GET_CURRENT_URL'];
-    
+
     if (!validMultiAITypes.includes(event.data.type)) {
         return;
     }
-    
+
+    // === 安全校验（S1）：仅信任来自扩展父页面的消息 ===
+    // inject.js 运行在第三方 AI 站点，其父窗口即扩展页面（iframe.html）。
+    // 任何其它来源（包括被注入恶意脚本的页面、跨域 iframe）都不得触发处理。
+    // 优先使用 MessagingSecurity.isFromExtension（由 lib/messaging.js 提供），
+    // 若不可用（加载时序问题），回退到内联的父页面 origin 校验。
+    let isTrustedSource = false;
+    if (window.MessagingSecurity && typeof MessagingSecurity.isFromExtension === 'function') {
+        isTrustedSource = MessagingSecurity.isFromExtension(event);
+    } else {
+        // 内联降级：消息来自父页面，且父页面是 chrome-extension:// 源
+        isTrustedSource = event.source === window.parent &&
+                          typeof event.origin === 'string' &&
+                          event.origin.startsWith('chrome-extension://');
+    }
+    if (!isTrustedSource) {
+        return;
+    }
+    // 缓存扩展父页面 origin，供后续安全回传消息使用（S2）
+    if (!__parentExtensionOrigin && event.origin.startsWith('chrome-extension://')) {
+        __parentExtensionOrigin = event.origin;
+    }
+
+    // 已通过来源校验：确认这是扩展下发的消息。
+    // 若当前不在 AI 站点（如首次加载未完成），仍允许 SET_HISTORY_CONTEXT 等
+    // 元数据消息，但 search/EXTRACT_CONTENT 等需要站点处理器，isAISite 检查放在其后。
+
+    // 记录有效的 AIShortcuts 消息
+    console.log('🎯🎯🎯 inject.js 收到 AIShortcuts 消息:', event.data, '来源:', event.origin);
+
+    // isAISite 检查（移到静态过滤与来源校验之后）
+    // 对于 SET_HISTORY_CONTEXT 这类元数据消息，即使 isAISite 未就绪也允许处理
+    // 注意：checkAISite() 内部会处理缓存逻辑：如果缓存结果为 false 会重新检查
+    // （防止 document_start 时 chrome.storage 数据未就绪导致缓存错误结果）
+    if (event.data.type !== 'SET_HISTORY_CONTEXT') {
+        let onAISite = await checkAISite();
+        if (!onAISite) {
+            return; // 不在 AI 站点中，跳过需要站点处理器的消息
+        }
+    }
+
     console.log('收到消息类型:', event.data.type);
 
     // 接收父页面下发的历史上下文（用于把 URL 更新写回正确的 history 记录）
@@ -1552,12 +1645,12 @@ window.addEventListener('message', async function(event) {
             console.log('⚠️ URL清理失败，使用原始URL:', error);
         }
         
-        // 发送当前 URL 回父窗口
-        window.parent.postMessage({
+        // 发送当前 URL 回父窗口（S2：使用具体 origin）
+        postToParent({
             type: 'GET_CURRENT_URL_RESPONSE',
             siteName: event.data.siteName,
             url: pageUrl
-        }, '*');
+        });
         
         console.log('✅ 已发送当前 URL:', pageUrl);
         return;
@@ -1592,24 +1685,24 @@ window.addEventListener('message', async function(event) {
                     console.log('⚠️ URL清理失败，使用原始URL:', error);
                 }
                 
-                // 发送提取结果回主窗口
-                window.parent.postMessage({
+                // 发送提取结果回主窗口（S2：使用具体 origin）
+                postToParent({
                     type: 'EXTRACTED_CONTENT',
                     siteName: event.data.siteName,
                     content: content,
                     url: pageUrl
-                }, '*');
+                });
                 
                 console.log('✅ 内容提取完成，已发送结果');
             } catch (error) {
                 console.error('❌ 内容提取失败:', error);
                 
-                // 发送错误结果
-                window.parent.postMessage({
+                // 发送错误结果（S2：使用具体 origin）
+                postToParent({
                     type: 'EXTRACTED_CONTENT',
                     siteName: event.data.siteName,
                     content: `内容提取失败: ${error.message}`
-                }, '*');
+                });
             }
         })();
         return;
@@ -1927,14 +2020,14 @@ function startHistoryUrlDetection(siteName, urlFeature, historyId) {
           lastMatchedUrl = currentUrl;
           console.log(`✅ ${siteName} URL 匹配成功: ${currentUrl}`);
           
-          // 发送消息通知父窗口更新历史记录
-          window.parent.postMessage({
+          // 发送消息通知父窗口更新历史记录（S2：使用具体 origin）
+          postToParent({
             type: 'HISTORY_URL_UPDATE',
             source: 'inject-script',
             siteName: siteName,
             url: currentUrl,
             historyId: targetHistoryId
-          }, '*');
+          });
           
           console.log(`📤 已通知父窗口更新 ${siteName} 的历史记录 URL`);
           
@@ -2437,17 +2530,51 @@ function convertHtmlToMarkdown(html) {
         if (e.key === 'Alt') {
             const currentTime = Date.now();
             if (currentTime - lastAltPressTime < 300) {
-                // 双击 Alt/Option 成功，向父窗口发送 message
+                // 双击 Alt/Option 成功，向父窗口发送 message（S2：使用具体 origin）
                 if (window.parent && window.parent !== window) {
-                    window.parent.postMessage({
+                    postToParent({
                         type: 'TOGGLE_INPUT_DRAWER',
                         source: 'inject-script'
-                    }, '*');
+                    });
                 }
                 lastAltPressTime = 0;
             } else {
+                // 记录第一次按下的时间
                 lastAltPressTime = currentTime;
             }
         }
     });
+})();
+
+// 监听鼠标进入/离开 iframe 事件并通知父级
+(async function() {
+    try {
+        const domain = window.location.hostname;
+        const siteHandler = await getSiteHandler(domain);
+        if (!siteHandler) return;
+        
+        const siteName = siteHandler.name;
+        
+        document.addEventListener('mouseenter', () => {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'IFRAME_HOVER_STATE',
+                    site: siteName,
+                    hovered: true
+                }, '*');
+            }
+        });
+        
+        document.addEventListener('mouseleave', () => {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'IFRAME_HOVER_STATE',
+                    site: siteName,
+                    hovered: false
+                }, '*');
+            }
+        });
+    } catch (err) {
+        console.error('[inject] 注册 Hover 监听失败:', err);
+    }
 })();

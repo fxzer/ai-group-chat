@@ -136,56 +136,73 @@ async function loadTemplatesList() {
       return;
     }
     
-    container.innerHTML = sortedTemplates.map(template => `
-      <div class="template-item site-config" data-template-id="${template.id}" style="
-        background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        padding: 16px;
-        margin-bottom: 12px;
-        transition: box-shadow 0.2s ease;
-      ">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-          <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
-            <div class="drag-handle" title="拖拽调整顺序" style="cursor: grab; color: #999; font-size: 14px; user-select: none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg></div>
-            <h4 style="margin: 0; font-size: 16px; color: #333;">${template.name}</h4>
-            ${template.isDefault ? '<span style="background: #e8f5e8; color: #00a240; padding: 2px 6px; border-radius: 3px; font-size: 12px;">默认</span>' : ''}
-          </div>
-          <div style="display: flex; gap: 8px; flex-shrink: 0;">
-            <button class="edit-template-btn" data-template-id="${template.id}" style="
-              background: #f5f5f5;
-              border: 1px solid #ddd;
-              border-radius: 4px;
-              padding: 6px 12px;
-              cursor: pointer;
-              font-size: 12px;
-              color: #666;
-            " data-i18n="editButton">${chrome.i18n.getMessage('editButton') || '编辑'}</button>
-            <button class="delete-template-btn" data-template-id="${template.id}" style="
-              background: #ffebee;
-              border: 1px solid #ffcdd2;
-              border-radius: 4px;
-              padding: 6px 12px;
-              cursor: pointer;
-              font-size: 12px;
-              color: #d32f2f;
-            " data-i18n="deleteButton">${chrome.i18n.getMessage('deleteButton') || '删除'}</button>
-          </div>
-        </div>
-        <div style="
-          background: #f8f9fa;
-          border: 1px solid #e9ecef;
-          border-radius: 4px;
-          padding: 12px;
-          font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-          font-size: 12px;
-          color: #495057;
-          word-break: break-word;
-          margin-left: 28px;
-          white-space: pre-wrap;
-        ">${template.query}</div>
-      </div>
-    `).join('');
+    container.innerHTML = '';
+    sortedTemplates.forEach(template => {
+      const item = document.createElement('div');
+      item.className = 'template-item site-config';
+      item.setAttribute('data-template-id', template.id);
+      item.style.cssText = 'background:white;border:1px solid #e0e0e0;border-radius:8px;padding:16px;margin-bottom:12px;transition:box-shadow 0.2s ease;';
+
+      // 头部行
+      const headerRow = document.createElement('div');
+      headerRow.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;';
+
+      const titleGroup = document.createElement('div');
+      titleGroup.style.cssText = 'display:flex;align-items:center;gap:8px;flex:1;';
+
+      // 拖拽手柄（静态 SVG，不含用户数据）
+      const dragHandle = document.createElement('div');
+      dragHandle.className = 'drag-handle';
+      dragHandle.title = '拖拽调整顺序';
+      dragHandle.style.cssText = 'cursor:grab;color:#999;font-size:14px;user-select:none;';
+      dragHandle.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>';
+      titleGroup.appendChild(dragHandle);
+
+      // 标题（用户数据，用 textContent 防 XSS - S5）
+      const title = document.createElement('h4');
+      title.style.cssText = 'margin:0;font-size:16px;color:#333;';
+      title.textContent = template.name;
+      titleGroup.appendChild(title);
+
+      if (template.isDefault) {
+        const badge = document.createElement('span');
+        badge.style.cssText = 'background:#e8f5e8;color:#00a240;padding:2px 6px;border-radius:3px;font-size:12px;';
+        badge.textContent = '默认';
+        titleGroup.appendChild(badge);
+      }
+      headerRow.appendChild(titleGroup);
+
+      // 操作按钮组
+      const btnGroup = document.createElement('div');
+      btnGroup.style.cssText = 'display:flex;gap:8px;flex-shrink:0;';
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'edit-template-btn';
+      editBtn.setAttribute('data-template-id', template.id);
+      editBtn.setAttribute('data-i18n', 'editButton');
+      editBtn.style.cssText = 'background:#f5f5f5;border:1px solid #ddd;border-radius:4px;padding:6px 12px;cursor:pointer;font-size:12px;color:#666;';
+      editBtn.textContent = chrome.i18n.getMessage('editButton') || '编辑';
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'delete-template-btn';
+      deleteBtn.setAttribute('data-template-id', template.id);
+      deleteBtn.setAttribute('data-i18n', 'deleteButton');
+      deleteBtn.style.cssText = 'background:#ffebee;border:1px solid #ffcdd2;border-radius:4px;padding:6px 12px;cursor:pointer;font-size:12px;color:#d32f2f;';
+      deleteBtn.textContent = chrome.i18n.getMessage('deleteButton') || '删除';
+
+      btnGroup.appendChild(editBtn);
+      btnGroup.appendChild(deleteBtn);
+      headerRow.appendChild(btnGroup);
+      item.appendChild(headerRow);
+
+      // 查询内容（用户数据，用 textContent 防 XSS - S5）
+      const queryBox = document.createElement('div');
+      queryBox.style.cssText = 'background:#f8f9fa;border:1px solid #e9ecef;border-radius:4px;padding:12px;font-family:\'Monaco\',\'Menlo\',\'Courier New\',monospace;font-size:12px;color:#495057;word-break:break-word;margin-left:28px;white-space:pre-wrap;';
+      queryBox.textContent = template.query;
+      item.appendChild(queryBox);
+
+      container.appendChild(item);
+    });
     
     // 添加hover效果和拖拽功能
     container.querySelectorAll('.template-item').forEach(item => {
@@ -448,7 +465,9 @@ function addTemplateDragFunctionality(templateItem) {
 
     placeholder = document.createElement('div');
     placeholder.className = 'drag-placeholder';
-    placeholder.style.height = originalHeight + 'px';
+    if (window.innerWidth > 1024) {
+      placeholder.style.height = originalHeight + 'px';
+    }
     container.insertBefore(placeholder, templateItem.nextSibling);
 
     templateItem.style.position = 'fixed';
@@ -690,6 +709,23 @@ async function initializeSummarySettings() {
       } finally {
         testBtn.disabled = false;
       }
+    });
+  }
+
+  // S9：API Key 显示/隐藏切换（小眼睛按钮）
+  const toggleVisibilityBtn = document.getElementById('toggleApiKeyVisibility');
+  if (toggleVisibilityBtn && summaryApiKey) {
+    toggleVisibilityBtn.addEventListener('click', () => {
+      const isPassword = summaryApiKey.type === 'password';
+      summaryApiKey.type = isPassword ? 'text' : 'password';
+      const eyeOpen = toggleVisibilityBtn.querySelector('.eye-open');
+      const eyeClosed = toggleVisibilityBtn.querySelector('.eye-closed');
+      if (eyeOpen) eyeOpen.style.display = isPassword ? 'none' : 'block';
+      if (eyeClosed) eyeClosed.style.display = isPassword ? 'block' : 'none';
+      toggleVisibilityBtn.setAttribute(
+        'aria-label',
+        isPassword ? '隐藏 API Key' : '显示 API Key'
+      );
     });
   }
 }

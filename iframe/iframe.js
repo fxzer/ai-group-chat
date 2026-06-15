@@ -4,6 +4,20 @@ if (!DEBUG_MODE) {
   console.log = function() {};
 }
 
+// 重写 HTMLElement.prototype.focus 阻止自动滚动父页面（解决多 iframe 环境下的滚动抖动问题）
+// 注意：仅在扩展自身的 iframe.html 页面内生效，不影响第三方 AI 站点
+if (typeof HTMLElement !== 'undefined' && HTMLElement.prototype.focus) {
+  const originalFocus = HTMLElement.prototype.focus;
+  HTMLElement.prototype.focus = function(options) {
+    if (options && typeof options === 'object') {
+      options.preventScroll = true;
+    } else {
+      options = { preventScroll: true };
+    }
+    return originalFocus.call(this, options);
+  };
+}
+
 // 全局文件粘贴检测和处理
 let filePasteHandlerAdded = false;
 
@@ -21,6 +35,69 @@ function getOpenedSites() {
   return Array.from(document.querySelectorAll('.ai-iframe'))
     .map(iframe => iframe.getAttribute('data-site'))
     .filter(Boolean);
+}
+
+// ========== iframe 实际 origin 缓存 ==========
+// 一些站点（如 kimi.moonshot.cn）会重定向到不同的域名（如 www.kimi.com），
+// 导致 iframe.src 推导的 origin 与 iframe 当前页面的实际 origin 不匹配，
+// postMessage 被浏览器静默丢弃。我们通过监听 iframe 发送到父页面的消息，
+// 从 event.origin 获取其实际 origin 并缓存，供后续出站消息使用。
+const iframeActualOriginMap = new WeakMap();
+
+// 向 AI 站点 iframe 安全发送消息（S2：用具体 origin 取代 '*'）
+// 优先使用缓存的实际 origin（来自 iframe 之前发送的消息中的 event.origin），
+// 若不可用则从 iframe.src 推导并尝试 www/non-www 变体。
+function postToIframe(iframe, message) {
+  if (!iframe || !iframe.contentWindow) return false;
+  let origins = [];
+  
+  // 方法1（最佳）：使用缓存的实际 origin（从 iframe 此前发来的消息中获取）
+  const cachedOrigin = iframeActualOriginMap.get(iframe);
+  if (cachedOrigin) {
+    origins.push(cachedOrigin);
+  }
+  
+  // 方法2：尝试同源读取（仅同源 iframe 生效）
+  try {
+    const o = iframe.contentWindow.location.origin;
+    if (o && o !== 'null' && o !== 'about:blank') origins.push(o);
+  } catch (e) { /* 跨域，无法直接读取 */ }
+  
+  // 方法3：从 iframe.src 推导 origin，同时生成 www/non-www 变体
+  if (iframe.src) {
+    try {
+      const parsed = new URL(iframe.src);
+      const primaryOrigin = parsed.origin;
+      origins.push(primaryOrigin);
+      // 生成 www/non-www 变体：对于重定向到 www 前缀的站点（如 doubao.com → www.doubao.com）
+      if (parsed.hostname.startsWith('www.')) {
+        origins.push(primaryOrigin.replace('//www.', '//'));
+      } else {
+        origins.push(primaryOrigin.replace('//', '//www.'));
+      }
+    } catch (e2) { /* ignore */ }
+  }
+  
+  // 去重
+  origins = [...new Set(origins)];
+  
+  if (origins.length === 0) {
+    console.warn('[iframe] postToIframe: 无法确定 targetOrigin，已拒绝发送', message && message.type);
+    return false;
+  }
+  
+  // 向所有候选 origin 发送消息——浏览器仅会送达与 iframe 当前页面 origin 匹配的那个。
+  // 不匹配的将被静默丢弃，不会产生副作用。
+  let sentAny = false;
+  for (const origin of origins) {
+    try {
+      iframe.contentWindow.postMessage(message, origin);
+      sentAny = true;
+    } catch (e) {
+      console.error('[iframe] postToIframe 发送失败, origin:', origin, e);
+    }
+  }
+  return sentAny;
 }
 
 // 统一的文件扩展名检测
@@ -200,46 +277,27 @@ document.addEventListener('DOMContentLoaded', async function() {
                 
                 // 获取站点配置并创建 iframes
                 getDefaultSites().then((sites) => {
-                    if (sites && sites.length > 0) {
-                        const availableSites = getFilteredAvailableSites(sites, selectedSiteNames);
-                        if (availableSites.length > 0) {
-                            console.log('使用查询内容创建 iframes:', query, availableSites);
-                            createIframes(query, availableSites);
-                            // 清理 URL 参数，防止刷新时自动重发
-                            const cleanUrl = window.location.pathname + window.location.hash;
-                            window.history.replaceState({}, '', cleanUrl);
-                        } else {
-                            console.log('没有可用的站点');
-                        }
+                    const availableSites = getFilteredAvailableSites(sites || [], selectedSiteNames);
+                    createIframes(query, availableSites);
+                    if (availableSites.length > 0) {
+                        // 清理 URL 参数，防止刷新时自动重发
+                        const cleanUrl = window.location.pathname + window.location.hash;
+                        window.history.replaceState({}, '', cleanUrl);
                     }
                 });
             } else {
                 // 如果查询参数是 'true' 或空，按直接打开处理
                 console.log('URL 参数 query=true，按直接打开处理');
                 getDefaultSites().then((sites) => {
-                    if (sites && sites.length > 0) {
-                        const availableSites = getFilteredAvailableSites(sites, selectedSiteNames);
-                        if (availableSites.length > 0) {
-                            console.log('初始化可用站点:', availableSites);
-                            createIframes('', availableSites);
-                        } else {
-                            console.log('没有可用的站点');
-                        }
-                    }
+                    const availableSites = getFilteredAvailableSites(sites || [], selectedSiteNames);
+                    createIframes('', availableSites);
                 });
             }
         } else {
             // 直接打开（方式1）
             getDefaultSites().then((sites) => {
-                if (sites && sites.length > 0) {
-                    const availableSites = getFilteredAvailableSites(sites, selectedSiteNames);
-                    if (availableSites.length > 0) {
-                        console.log('初始化可用站点:', availableSites);
-                        createIframes('', availableSites);
-                    } else {
-                        console.log('没有可用的站点');
-                    }
-                }
+                const availableSites = getFilteredAvailableSites(sites || [], selectedSiteNames);
+                createIframes('', availableSites);
             });
         }
     }
@@ -304,10 +362,15 @@ document.addEventListener('DOMContentLoaded', async function() {
     // ========== 浮动 UI 交互 ==========
     initFloatingUI();
 
-    // 如果是从扩展图标打开的（无 query 参数），自动弹出输入抽屉
+    // 如果是从扩展图标打开的（无 query 参数），且启用了至少一个站点，自动弹出输入抽屉
     if (!hasQueryParam) {
         // 等 iframe 创建完毕后再弹，以避免初始化时序问题
         setTimeout(() => {
+            const iframeCount = document.querySelectorAll('.ai-iframe').length;
+            if (iframeCount === 0) {
+                console.log('检测到没有启用的 AI 站点，不自动弹出输入抽屉');
+                return;
+            }
             const inputToggle = document.getElementById('inputToggleBtn');
             if (inputToggle) {
                 inputToggle.click();
@@ -501,14 +564,12 @@ function initFloatingUI() {
             // 重新加载已启用的站点
             try {
                 const sites = await getDefaultSites();
-                const availableSites = sites.filter(site => 
+                const availableSites = (sites || []).filter(site => 
                     site.enabled && 
                     site.supportIframe !== false && 
                     !site.hidden
                 );
-                if (availableSites.length > 0) {
-                    createIframes('', availableSites);
-                }
+                createIframes('', availableSites);
             } catch (error) {
                 console.error('新建会话失败:', error);
             }
@@ -887,7 +948,7 @@ async function executeFileUploadSequentially(iframes, fileData, fallbackMode = f
       
       if (fallbackMode) {
         // 降级模式：让 iframe 自己尝试读取剪贴板
-        iframe.contentWindow.postMessage({
+        postToIframe(iframe, {
           type: 'TRIGGER_PASTE',
           domain: domain,
           source: 'iframe-parent',
@@ -895,10 +956,10 @@ async function executeFileUploadSequentially(iframes, fileData, fallbackMode = f
           fallback: true,
           index: i + 1,
           total: totalIframes
-        }, '*');
+        });
       } else {
         // 优先模式：使用站点特定的文件上传处理器
-        iframe.contentWindow.postMessage({
+        postToIframe(iframe, {
           type: 'TRIGGER_PASTE',
           domain: domain,
           source: 'iframe-parent',
@@ -907,7 +968,7 @@ async function executeFileUploadSequentially(iframes, fileData, fallbackMode = f
           useSiteHandler: true, // 标记使用站点处理器
           index: i + 1,
           total: totalIframes
-        }, '*');
+        });
       }
       
       // 等待一段时间让 iframe 处理完成
@@ -1052,8 +1113,11 @@ function setActiveColumnOption(columns) {
 // 更新列数的辅助函数
 function updateColumns(columns) {
     const iframesContainer = document.getElementById('iframes-container');
-    iframesContainer.dataset.columns = columns;
-    document.documentElement.style.setProperty('--columns', columns);
+    if (iframesContainer) {
+        iframesContainer.dataset.columns = columns;
+        document.documentElement.style.setProperty('--columns', columns);
+        updateIframeBorders();
+    }
 }
 
 // 监听来自 background 的消息
@@ -1075,14 +1139,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+// 渲染暂无启用站点提示
+function renderNoSitesPlaceholder(container) {
+  if (!container) return;
+  if (container.querySelector('.no-sites-placeholder')) return;
+  const placeholder = document.createElement('div');
+  placeholder.className = 'no-sites-placeholder';
+  placeholder.innerHTML = `
+    <div class="placeholder-icon" style="font-size: 64px; margin-bottom: 20px; animation: bounce 2s infinite;">🧩</div>
+    <h2>请在设置中启用 AI 站点</h2>
+  `;
+  container.appendChild(placeholder);
+}
+
 // 处理 iframe 的创建和加载
 async function createIframes(query, sites) {
-    // 站点已经按order排序了，直接使用
-  const enabledSites = sites;
-    
+  const enabledSites = sites || [];
   console.log('过滤后的站点:', enabledSites);
     
-    // 获取容器元素
   const container = document.getElementById('iframes-container');
   if (!container) {
     console.error('未找到 iframes 容器');
@@ -1093,15 +1167,17 @@ async function createIframes(query, sites) {
   // 不覆盖CSS中定义的display: grid
     
   try {
-    if (query) {
-      
-      // 如果有查询词,清空容器内容
-      container.innerHTML = '';
-      console.log("清空iframe")
+    // 每次创建均清空容器内容，以便重新载入或渲染提示
+    container.innerHTML = '';
+    
+    // 如果一个 AI 站点都没有启用，显示友好提示
+    if (enabledSites.length === 0) {
+      renderNoSitesPlaceholder(container);
+      return;
+    }
 
-    } 
     // 为每个启用的站点创建 iframe，传入 query 参数
-    enabledSites.forEach(site => {
+    enabledSites.forEach((site, index) => {
       // 如果 query 为空,使用 site.url 的 hostname
       let url;
       if (!query) {
@@ -1119,8 +1195,12 @@ async function createIframes(query, sites) {
       }
         
       console.log("即将开始调用创建单个 iframe",site.name, url)
-      createSingleIframe(site.name, url, container, query);
+      const iframeContainer = createSingleIframe(site.name, url, container, query);
+      if (iframeContainer) {
+        iframeContainer.style.order = index;
+      }
     });
+    updateIframeBorders();
   } catch (error) {
     console.error('创建 iframes 失败:', error);
   }
@@ -1160,25 +1240,64 @@ async function getIframeLatestUrl(iframe, siteName, historyId = null) {
           reject(new Error('获取 URL 超时'));
         }, 1000); // 1秒超时
         
-        const messageHandler = (event) => {
-          // 确保消息来自目标 iframe
-          if (event.source === iframe.contentWindow && 
+        const messageHandler = async (event) => {
+          // 确保消息来自目标 iframe，且 origin 可信（S1）
+          if (event.source === iframe.contentWindow &&
               event.data.type === 'GET_CURRENT_URL_RESPONSE' &&
               event.data.siteName === siteName) {
+            // ★ 同样先缓存实际 origin
+            if (event.origin && event.origin !== window.location.origin) {
+              const cachedOrigin = iframeActualOriginMap.get(iframe);
+              if (cachedOrigin !== event.origin) {
+                iframeActualOriginMap.set(iframe, event.origin);
+                console.log('[iframe] 缓存 iframe 实际 origin (getIframeLatestUrl):', siteName, event.origin);
+              }
+            }
+            const trusted = await MessagingSecurity.isTrustedMessage(event, { expectedSource: iframe.contentWindow });
+            if (!trusted) {
+              console.warn(`[iframe] 拒绝 ${siteName} 的 GET_CURRENT_URL_RESPONSE：来源不可信`, event.origin);
+              return;
+            }
             clearTimeout(timeout);
             window.removeEventListener('message', messageHandler);
             resolve(event.data.url);
           }
         };
-        
+
         window.addEventListener('message', messageHandler);
-        
-        // 发送请求到 iframe
+
+        // 发送请求到 iframe（S2：使用具体 origin）
+        // 同时尝试 www/non-www 变体，解决站点重定向导致的 origin 不匹配
         try {
-          iframe.contentWindow.postMessage({
-            type: 'GET_CURRENT_URL',
-            siteName: siteName
-          }, '*');
+          // 推断 iframe 的 origin 列表（同源时可直接读取；跨域时用 src 推导）
+          let origins = [];
+          try {
+            const o = iframe.contentWindow.location.origin;
+            if (o && o !== 'null' && o !== 'about:blank') origins.push(o);
+          } catch (e) { /* 跨域 */ }
+          if (origins.length === 0 && iframe.src) {
+            try {
+              const parsed = new URL(iframe.src);
+              origins.push(parsed.origin);
+              // www/non-www 变体
+              if (parsed.hostname.startsWith('www.')) {
+                origins.push(parsed.origin.replace('//www.', '//'));
+              } else {
+                origins.push(parsed.origin.replace('//', '//www.'));
+              }
+            } catch (e2) { /* ignore */ }
+          }
+          origins = [...new Set(origins)];
+          if (origins.length > 0) {
+            for (const origin of origins) {
+              try {
+                iframe.contentWindow.postMessage({
+                  type: 'GET_CURRENT_URL',
+                  siteName: siteName
+                }, origin);
+              } catch (e) { /* ignore delivery errors for alternative origins */ }
+            }
+          }
         } catch (postError) {
           clearTimeout(timeout);
           window.removeEventListener('message', messageHandler);
@@ -1229,14 +1348,17 @@ function createSingleIframe(siteName, url, container, query, keepFullUrl = false
   const iframeContainer = document.createElement('div');
   iframeContainer.className = 'iframe-container';
   
-  // iframe容器不需要特殊的布局设置，CSS Grid会自动处理
+  // 查找容器内已有的最大 order，为其分配 maxOrder + 1
+  const maxOrder = Array.from(container.querySelectorAll('.iframe-container'))
+      .reduce((max, child) => Math.max(max, parseInt(child.style.order) || 0), -1);
+  iframeContainer.style.order = maxOrder + 1;
   
   const iframe = document.createElement('iframe');
   iframe.className = 'ai-iframe';
   iframe.setAttribute('data-site', siteName);
   
-  // 临时移除 sandbox 属性以测试剪贴板权限
-  // iframe.sandbox = 'allow-same-origin allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation';
+  // 必须移除 sandbox 属性：1. 解决沙箱环境下跨域 window.parent 访问受限导致消息校验失败的问题；2. 避免沙箱阻断剪贴板读取（Paste 功能所需）。
+  // iframe.sandbox = 'allow-same-origin allow-scripts allow-popups allow-forms allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation allow-downloads allow-modals';
   
   iframe.allow = 'clipboard-read; clipboard-write; microphone; camera; geolocation; autoplay; fullscreen; picture-in-picture; storage-access; web-share';
   
@@ -1261,10 +1383,10 @@ function createSingleIframe(siteName, url, container, query, keepFullUrl = false
     } catch (error) {
       console.log('无法直接访问 iframe 内容，将通过消息通信处理焦点');
       try {
-        iframe.contentWindow.postMessage({
+        postToIframe(iframe, {
           type: 'PREVENT_FOCUS',
           source: 'iframe-parent'
-        }, '*');
+        });
       } catch (postErr) {
         console.warn('焦点预防消息发送失败:', postErr);
       }
@@ -1277,11 +1399,11 @@ function createSingleIframe(siteName, url, container, query, keepFullUrl = false
       if (isDrawerOpen) {
         setTimeout(() => {
           searchInput.focus();
-        }, 100);
+        }, 30);
       }
     }
     
-    // 2. 点击事件拦截监听器（确保只处理一次）
+    // 2. 检测点击事件以关闭其他悬浮框
     if (!clickHandlerAdded) {
       try {
         // 添加点击事件监听器
@@ -1297,10 +1419,10 @@ function createSingleIframe(siteName, url, container, query, keepFullUrl = false
       } catch (error) {
         console.log('无法直接添加监听器，将通过 inject.js 处理');
         try {
-          iframe.contentWindow.postMessage({
+          postToIframe(iframe, {
             type: 'INJECT_CLICK_HANDLER',
             source: 'iframe-parent'
-          }, '*');
+          });
           clickHandlerAdded = true;
         } catch (postErr) {
           console.warn('点击处理器注入消息发送失败:', postErr);
@@ -1364,6 +1486,11 @@ function createSingleIframe(siteName, url, container, query, keepFullUrl = false
           <path d="M9.5 6.5a3.5 3.5 0 0 0-5.05-.45l-2 2a3.5 3.5 0 0 0 4.95 4.95l1.2-1.2"/>
         </svg>
       </button>
+      <button class="refresh-btn" title="重新加载此站点">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13.5 8a5.5 5.5 0 1 1-5.5-5.5m0 0h3v-3m-3 3l3 3"/>
+        </svg>
+      </button>
       <button class="close-btn"></button>
     </div>
   `;
@@ -1383,9 +1510,13 @@ function createSingleIframe(siteName, url, container, query, keepFullUrl = false
   iframeContainer.appendChild(iframe);
   container.appendChild(iframeContainer);
   
+  // 渲染完成后动态更新所有 iframe 边框
+  updateIframeBorders();
+  
   // 添加按钮事件处理
   const openPageBtn = header.querySelector('.open-page-btn');
   const copyLinkBtn = header.querySelector('.copy-link-btn');
+  const refreshBtn = header.querySelector('.refresh-btn');
   const closeBtn = header.querySelector('.close-btn');
   
   // 设置按钮的国际化标题
@@ -1428,8 +1559,52 @@ function createSingleIframe(siteName, url, container, query, keepFullUrl = false
     }
   };
 
-  closeBtn.onclick = () => {
+  // 刷新单个 iframe 按钮点击事件
+  if (refreshBtn) {
+    refreshBtn.onclick = async (e) => {
+      e.stopPropagation();
+      const historyId = window._currentHistoryId || null;
+      const iframeUrl = await getIframeLatestUrl(iframe, siteName, historyId);
+      const targetUrl = iframeUrl || iframe.src;
+      if (targetUrl && targetUrl !== 'about:blank') {
+        iframe.src = targetUrl;
+      } else {
+        try {
+          iframe.contentWindow.location.reload();
+        } catch (err) {
+          iframe.src = iframe.src;
+        }
+      }
+      showToast('已重新加载站点: ' + siteName);
+    };
+  }
+
+  closeBtn.onclick = async () => {
     iframeContainer.remove();
+    updateIframeBorders();
+    
+    // 如果没有 iframe 剩余了，显示占位提示
+    const mainContainer = document.getElementById('iframes-container');
+    if (mainContainer && mainContainer.querySelectorAll('.iframe-container').length === 0) {
+      renderNoSitesPlaceholder(mainContainer);
+    }
+    
+    // 自动更新 chrome.storage.sync，将其设为不启用
+    try {
+      const { sites: existingSettings = {} } = await chrome.storage.sync.get('sites');
+      const updated = { ...existingSettings };
+      if (!updated[siteName]) updated[siteName] = {};
+      updated[siteName].enabled = false;
+      await chrome.storage.sync.set({ sites: updated });
+      
+      // 如果设置抽屉正打开着，让其重新初始化以保持选中状态一致
+      const settingsPanel = document.getElementById('settingsPanel');
+      if (settingsPanel && settingsPanel.style.display !== 'none' && settingsPanel.style.display !== '') {
+        await initializeSiteSettings();
+      }
+    } catch (err) {
+      console.error('自动保存站点设置失败:', err);
+    }
   };
 
   const fullscreenBtn = header.querySelector('.fullscreen-btn');
@@ -1440,6 +1615,7 @@ function createSingleIframe(siteName, url, container, query, keepFullUrl = false
     };
   }
 
+  return iframeContainer;
 }
 
 // 导出函数供其他文件使用
@@ -1523,12 +1699,12 @@ async function getIframeHandler(iframeUrl) {
               await new Promise(resolve => setTimeout(resolve, 2000));
               
               // 向 iframe 发送统一格式的消息
-              iframe.contentWindow.postMessage({
+              postToIframe(iframe, {
                 type: 'search',
                 query: query,
                 domain: domain,
                 historyId: historyId || null
-              }, '*');
+              });
               
               console.log(`已向 ${domain} 发送搜索消息`);
             } catch (error) {
@@ -1687,6 +1863,7 @@ async function initializeSiteSettings() {
                 const enabledContainer = document.getElementById('enabledSitesList');
                 const disabledContainer = document.getElementById('disabledSitesList');
                 const item = e.target.closest('.site-item');
+                const container = document.getElementById('iframes-container');
 
                 if (checked) {
                     // 移到已启用列表末尾
@@ -1695,9 +1872,32 @@ async function initializeSiteSettings() {
                     addSiteDragFunctionality(item);
                     
                     trackEvent('iframe_site_toggle', { site_name: site.name, enabled: true });
-                    const container = document.getElementById('iframes-container');
                     if (container) {
-                        createSingleIframe(site.name, site.url, container);
+                        // 移除占位提示
+                        const placeholder = container.querySelector('.no-sites-placeholder');
+                        if (placeholder) {
+                            placeholder.remove();
+                        }
+                        
+                        // 尝试获取当前搜索框的查询词并格式化 URL
+                        const searchInput = document.getElementById('searchInput');
+                        const query = searchInput ? searchInput.value.trim() : '';
+                        let url;
+                        if (!query) {
+                            try {
+                                url = new URL(site.url).hostname;
+                                url = 'https://' + url;
+                            } catch (e) {
+                                console.error('URL解析失败:', site.url);
+                                url = site.url;
+                            }
+                        } else {
+                            url = site.supportUrlQuery 
+                            ? site.url.replace('{query}', encodeURIComponent(query))
+                            : site.url;
+                        }
+                        
+                        createSingleIframe(site.name, url, container, query);
                     }
                 } else {
                     // 移到未启用列表
@@ -1707,6 +1907,10 @@ async function initializeSiteSettings() {
                     const iframeToRemove = document.querySelector(`[data-site="${site.name}"]`);
                     if (iframeToRemove) {
                         iframeToRemove.closest('.iframe-container').remove();
+                        updateIframeBorders();
+                    }
+                    if (container && container.querySelectorAll('.iframe-container').length === 0) {
+                        renderNoSitesPlaceholder(container);
                     }
                 }
                 // 更新标签计数
@@ -1794,7 +1998,6 @@ function addSiteDragFunctionality(siteItem) {
 
     let isDragging = false;
     let placeholder = null;
-    let initialIndex = 0;
 
     dragHandle.addEventListener('mousedown', (e) => {
         e.preventDefault();
@@ -1807,8 +2010,6 @@ function addSiteDragFunctionality(siteItem) {
         const container = siteItem.closest('.site-items-container');
         if (!container) return;
         const isEnabled = container.id === 'enabledSitesList';
-        const items = Array.from(container.children);
-        initialIndex = items.indexOf(siteItem);
 
         siteItem.classList.add('dragging');
         dragHandle.style.cursor = 'grabbing';
@@ -1832,23 +2033,30 @@ function addSiteDragFunctionality(siteItem) {
             const offY = parseFloat(siteItem.dataset.offsetY) || 0;
             siteItem.style.top = (ev.clientY - offY) + 'px';
 
-            const allItems = Array.from(container.children);
-            let newIdx = initialIndex;
-            for (let i = 0; i < allItems.length; i++) {
-                const r = allItems[i].getBoundingClientRect();
+            // 过滤出除了被拖拽元素和占位线以外的兄弟元素
+            const siblings = Array.from(container.children).filter(
+                item => item !== siteItem && item !== placeholder
+            );
+
+            // 寻找应该插入在哪一个兄弟元素之前
+            let insertBeforeSibling = null;
+            for (const sibling of siblings) {
+                const r = sibling.getBoundingClientRect();
                 if (ev.clientY < r.top + r.height / 2) {
-                    newIdx = i;
+                    insertBeforeSibling = sibling;
                     break;
                 }
-                newIdx = i + 1;
             }
-            if (newIdx !== initialIndex) {
-                if (newIdx >= allItems.length) {
-                    container.appendChild(placeholder);
-                } else {
-                    container.insertBefore(placeholder, allItems[newIdx]);
+
+            // 执行插入或追加
+            if (insertBeforeSibling) {
+                if (placeholder.nextSibling !== insertBeforeSibling) {
+                    container.insertBefore(placeholder, insertBeforeSibling);
                 }
-                initialIndex = newIdx;
+            } else {
+                if (placeholder.nextSibling !== null) {
+                    container.appendChild(placeholder);
+                }
             }
         };
 
@@ -1919,7 +2127,34 @@ async function saveDisabledSiteOrderFromSettings() {
     }
 }
 
-// 根据已启用列表的顺序重排 iframe 布局
+// 动态更新 iframe 的边框，避免 nth-child 在使用 CSS order 时不正确
+function updateIframeBorders() {
+    const iframesContainer = document.getElementById('iframes-container');
+    if (!iframesContainer) return;
+    
+    const containers = Array.from(iframesContainer.querySelectorAll('.iframe-container'));
+    // 按 CSS order 排序
+    containers.sort((a, b) => {
+        const orderA = parseInt(a.style.order) || 0;
+        const orderB = parseInt(b.style.order) || 0;
+        return orderA - orderB;
+    });
+
+    const columns = parseInt(iframesContainer.dataset.columns) || 2;
+
+    containers.forEach((container, i) => {
+        const colIndex = i % columns;
+        const rowIndex = Math.floor(i / columns);
+
+        const isFirstColumn = colIndex === 0;
+        const isFirstRow = rowIndex === 0;
+
+        container.style.setProperty('border-left', isFirstColumn ? 'none' : '1px solid #ddd', 'important');
+        container.style.setProperty('border-top', isFirstRow ? 'none' : '1px solid #ddd', 'important');
+    });
+}
+
+// 根据已启用列表的顺序重排 iframe 布局 (只更新 order 属性，不移动 DOM 避免 iframe 刷新)
 function reorderIframesFromSettings() {
     const enabledContainer = document.getElementById('enabledSitesList');
     if (!enabledContainer) return;
@@ -1927,15 +2162,17 @@ function reorderIframesFromSettings() {
     const iframesContainer = document.getElementById('iframes-container');
     if (!iframesContainer) return;
 
-    items.forEach(item => {
+    items.forEach((item, index) => {
         const siteName = item.getAttribute('data-site-name');
         const iframeContainer = iframesContainer.querySelector(
             `.iframe-container > .ai-iframe[data-site="${siteName}"]`
         )?.parentElement;
-        if (iframeContainer && iframeContainer.parentNode === iframesContainer) {
-            iframesContainer.appendChild(iframeContainer);
+        if (iframeContainer) {
+            iframeContainer.style.order = index;
         }
     });
+
+    updateIframeBorders();
 
     const siteCount = document.getElementById('drawerSiteCount');
     const iframeCount = document.querySelectorAll('.ai-iframe').length;
@@ -2181,11 +2418,11 @@ async function iframeFresh(query) {
                   const onLoadSendHistoryContext = () => {
                     try {
                       iframe.removeEventListener('load', onLoadSendHistoryContext);
-                      iframe.contentWindow?.postMessage({
+                      postToIframe(iframe, {
                         type: 'SET_HISTORY_CONTEXT',
                         historyId,
                         siteName
-                      }, '*');
+                      });
                     } catch (e) {
                       // ignore
                     }
@@ -2206,11 +2443,11 @@ async function iframeFresh(query) {
                   // 下发 history 上下文（不依赖 inject 是否处理 search 携带的 historyId）
                   if (historyId) {
                     try {
-                      iframe.contentWindow?.postMessage({
+                      postToIframe(iframe, {
                         type: 'SET_HISTORY_CONTEXT',
                         historyId,
                         siteName
-                      }, '*');
+                      });
                     } catch (e) {
                       // ignore
                     }
@@ -2244,13 +2481,23 @@ async function loadHistoryIframes(sites) {
     // 清空现有 iframe
     container.innerHTML = '';
     
+    // 如果没有站点，显示占位提示
+    if (!sites || sites.length === 0) {
+      renderNoSitesPlaceholder(container);
+      return;
+    }
+    
     // 复用 createSingleIframe 统一创建，keepFullUrl=true 保留完整会话 URL
-    sites.forEach(site => {
+    sites.forEach((site, index) => {
       const siteName = site.name;
       const url = site.url;
       console.log('从历史记录创建 iframe:', siteName, url);
-      createSingleIframe(siteName, url, container, null, true);
+      const iframeContainer = createSingleIframe(siteName, url, container, null, true);
+      if (iframeContainer) {
+        iframeContainer.style.order = index;
+      }
     });
+    updateIframeBorders();
     
     // 设置搜索框的值（如果有的话）
     const urlParams = new URLSearchParams(window.location.search);
@@ -2764,35 +3011,85 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // 全局统一处理来自 iframe 的消息，避免在每次创建 iframe 时重复注册监听器
-  window.addEventListener('message', (event) => {
-    // 1. 处理链接点击事件
-    if (event.data && event.data.type === 'LINK_CLICK' && event.data.href) {
-      window.open(event.data.href, '_blank');
+  window.addEventListener('message', async (event) => {
+    if (!event.data || typeof event.data !== 'object') return;
+
+    // === 安全校验（S1）：仅接受来自已知 AI 站点 iframe 的消息 ===
+    // 通过 event.source 匹配到已创建的 iframe，并校验其 origin 属于已知 AI 站点。
+    if (!event.source) return;
+    const knownIframe = Array.from(document.querySelectorAll('.ai-iframe'))
+      .find(f => f.contentWindow === event.source);
+    if (!knownIframe) return; // 来源不是任何已创建的 AI iframe
+
+    // ★ 在安全校验之前，先从 event.origin 记录 iframe 的实际 origin。
+    // 有些站点（如 kimi.moonshot.cn → www.kimi.com）会发生域名级重定向，
+    // 导致 iframe.src 推导的 origin 与 iframe 当前页面的实际 origin 不匹配。
+    // 即使这些消息（如 tea:sdk:info）被后续的 isTrustedMessage 拒绝，
+    // 我们已经把正确的 origin 缓存下来，供后续 postToIframe 出站消息使用。
+    if (event.origin && event.origin !== window.location.origin) {
+      const cachedOrigin = iframeActualOriginMap.get(knownIframe);
+      if (cachedOrigin !== event.origin) {
+        iframeActualOriginMap.set(knownIframe, event.origin);
+        console.log('[iframe] 缓存 iframe 实际 origin:', knownIframe.getAttribute('data-site'), event.origin);
+      }
     }
-    
-    // 2. 处理历史记录 URL 更新消息
-    if (event.data && event.data.type === 'HISTORY_URL_UPDATE' && event.data.source === 'inject-script') {
-      // 通过 event.source 匹配对应的 iframe
-      const iframes = document.querySelectorAll('.ai-iframe');
-      for (const iframe of iframes) {
-        if (iframe.contentWindow && event.source === iframe.contentWindow) {
-          const siteName = event.data.siteName;
-          const url = event.data.url;
-          const historyId = event.data.historyId || window._currentHistoryId;
-          
-          if (siteName && url && historyId) {
-            console.log(`📝 [全局监听] 收到 ${siteName} 的 URL 更新: ${url}，历史记录 ID: ${historyId}`);
-            updateHistorySiteUrl(siteName, url, historyId);
-          } else {
-            console.warn('历史记录 URL 更新消息缺少必要参数:', { siteName, url, historyId });
-          }
-          break;
+
+    // 异步校验 origin（需查 AI 站点集合）；LINK_CLICK 可先用 source 匹配快速放行，
+    // 但仍要求 origin 不是明显异常的扩展/本地源之外的可疑值。
+    const trusted = await MessagingSecurity.isTrustedMessage(event, { expectedSource: knownIframe.contentWindow });
+    if (!trusted) {
+      console.warn('[iframe] 拒绝来自不可信来源的消息:', event.origin, event.data.type);
+      return;
+    }
+
+    // 处理 Hover 状态同步
+    if (event.data.type === 'IFRAME_HOVER_STATE') {
+      const container = knownIframe.closest('.iframe-container');
+      if (container) {
+        if (event.data.hovered) {
+          // 移除其他所有的 js-hovered
+          document.querySelectorAll('.iframe-container.js-hovered').forEach(el => {
+            el.classList.remove('js-hovered');
+          });
+          container.classList.add('js-hovered');
+        } else {
+          container.classList.remove('js-hovered');
         }
+      }
+      return;
+    }
+
+    // 1. 处理链接点击事件
+    if (event.data.type === 'LINK_CLICK' && event.data.href) {
+      // 仅允许 http(s) 协议，防止 javascript:/data: 等协议被利用
+      try {
+        const targetUrl = new URL(event.data.href, knownIframe.src);
+        if (targetUrl.protocol === 'http:' || targetUrl.protocol === 'https:') {
+          window.open(targetUrl.href, '_blank');
+        } else {
+          console.warn('[iframe] 拒绝非 http(s) 协议的链接点击:', event.data.href);
+        }
+      } catch (e) {
+        console.warn('[iframe] 链接点击解析失败:', e.message);
+      }
+    }
+
+    // 2. 处理历史记录 URL 更新消息
+    if (event.data.type === 'HISTORY_URL_UPDATE' && event.data.source === 'inject-script') {
+      const siteName = event.data.siteName;
+      const url = event.data.url;
+      const historyId = event.data.historyId || window._currentHistoryId;
+
+      if (siteName && url && historyId) {
+        console.log(`📝 [全局监听] 收到 ${siteName} 的 URL 更新: ${url}，历史记录 ID: ${historyId}`);
+        updateHistorySiteUrl(siteName, url, historyId);
+      } else {
+        console.warn('历史记录 URL 更新消息缺少必要参数:', { siteName, url, historyId });
       }
     }
 
     // 3. 处理双击 Alt/Option 呼出/隐藏输入弹窗消息
-    if (event.data && event.data.type === 'TOGGLE_INPUT_DRAWER' && event.data.source === 'inject-script') {
+    if (event.data.type === 'TOGGLE_INPUT_DRAWER' && event.data.source === 'inject-script') {
       const inputToggle = document.getElementById('inputToggleBtn');
       if (inputToggle) {
         inputToggle.click();
