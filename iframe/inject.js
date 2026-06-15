@@ -570,227 +570,45 @@ async function executeSetValue(step, query) {
   element = await trySetValue();
 
   if (step.inputType === 'contenteditable') {
-    // 检查是否是 Lexical 编辑器（通过 data-lexical-editor 属性）
-    const isLexicalEditor = element.hasAttribute('data-lexical-editor') || 
-                           element.getAttribute('data-lexical-editor') === 'true';
-    
-    if (isLexicalEditor) {
-      // 处理 Lexical 编辑器
-      console.log('检测到 Lexical 编辑器，尝试更新内容');
+    // 统一的 contenteditable 设置策略：
+    // 仅使用 execCommand('insertText') 触发原生 beforeinput 事件链。
+    // Slate/Lexical/Tiptap 等框架会拦截 beforeinput 并 preventDefault，
+    // 此时 execCommand 返回 false，但框架已在内部处理了编辑操作。
+    // 我们不再做 DOM 操作或分配合成事件——这些会导致文本重复插入。
+    // 只有 execCommand 抛出异常时才回退到纯 DOM 操作。
+    try {
+      element.focus();
       
-      // 方法1: 尝试聚焦 + execCommand('insertText') 插入文本
-      // 这是最可靠的方式：execCommand 会触发原生 beforeinput 事件，
-      // Lexical 监听 beforeinput 并同步内部状态，再触发 React 更新。
-      // 注意：Lexical 可能会 intercept beforeinput 并 preventDefault，
-      // 导致 execCommand 返回 false，但文字已被 Lexical 内部处理。
-      // 因此我们检查 DOM 内容而非 execCommand 的返回值。
-      let contentSet = false;
-      try {
-        element.focus();
-        
-        // 清空现有内容：选中所有文本后删除
-        const sel = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(element);
-        sel.removeAllRanges();
-        sel.addRange(range);
-        
-        // 先删除现有内容
-        document.execCommand('delete', false, null);
-        
-        // 然后插入新文本（触发原生 beforeinput/input 事件链）
-        document.execCommand('insertText', false, query);
-        
-        // 检查 DOM 内容是否已更新（Lexical 可能拦截了 beforeinput 但自己处理了编辑）
-        if (element.textContent && element.textContent.trim() === query.trim()) {
-          contentSet = true;
-          console.log('Lexical: 通过 execCommand 设置内容成功');
-        } else {
-          console.log('Lexical: execCommand 已执行，但 DOM 未更新，尝试备用方法');
-        }
-      } catch (execError) {
-        console.log('Lexical: execCommand 方法失败:', execError);
-      }
+      // 选中全部内容（用于替换而非追加）
+      const selection = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      selection.removeAllRanges();
+      selection.addRange(range);
       
-      // 方法2: 如果 execCommand 失败，使用 DOM 操作 + 事件触发
-      if (!contentSet) {
-        // 先聚焦元素
-        element.focus();
-        
-        // 清空现有内容
-        const pElements = element.querySelectorAll('p');
-        if (pElements.length > 0) {
-          if (pElements.length > 1) {
-            for (let i = 1; i < pElements.length; i++) {
-              pElements[i].remove();
-            }
-          }
-          const pElement = pElements[0];
-          
-          if (query.trim()) {
-            pElement.innerHTML = '';
-            const span = document.createElement('span');
-            span.setAttribute('data-lexical-text', 'true');
-            span.textContent = query;
-            pElement.appendChild(span);
-          } else {
-            pElement.innerHTML = '';
-          }
-        } else {
-          element.innerHTML = '';
-          const pElement = document.createElement('p');
-          if (query.trim()) {
-            const span = document.createElement('span');
-            span.setAttribute('data-lexical-text', 'true');
-            span.textContent = query;
-            pElement.appendChild(span);
-          }
-          element.appendChild(pElement);
-        }
-        
-        // 触发 beforeinput 事件（Lexical 监听此事件来同步状态）
-        element.dispatchEvent(new InputEvent('beforeinput', {
-          bubbles: true,
-          cancelable: true,
-          inputType: 'insertText',
-          data: query
-        }));
-        
-        // 触发 input 事件
-        element.dispatchEvent(new InputEvent('input', {
-          bubbles: true,
-          cancelable: true,
-          inputType: 'insertText',
-          data: query
-        }));
-        
-        // 模拟输入法输入完成事件
-        element.dispatchEvent(new CompositionEvent('compositionend', {
-          bubbles: true,
-          data: query
-        }));
-        
-        // 触发 change 事件
-        element.dispatchEvent(new Event('change', {
-          bubbles: true,
-          cancelable: true
-        }));
-        
-        // 用 execCommand 再次尝试（此时 DOM 已准备就绪）
-        try {
-          const sel2 = window.getSelection();
-          const range2 = document.createRange();
-          range2.selectNodeContents(element);
-          sel2.removeAllRanges();
-          sel2.addRange(range2);
-          if (document.execCommand('insertText', false, query)) {
-            contentSet = true;
-            console.log('Lexical: 通过二次 execCommand 插入文本成功');
-          }
-        } catch (e2) {
-          console.log('Lexical: 二次 execCommand 也失败:', e2);
-        }
-        
-        // 最后手段：模拟粘贴事件
-        if (!contentSet && query.trim()) {
-          try {
-            element.focus();
-            const dataTransfer = new DataTransfer();
-            dataTransfer.setData('text/plain', query);
-            
-            element.dispatchEvent(new InputEvent('beforeinput', {
-              bubbles: true,
-              cancelable: true,
-              inputType: 'insertFromPaste',
-              data: query
-            }));
-            
-            element.dispatchEvent(new ClipboardEvent('paste', {
-              clipboardData: dataTransfer,
-              bubbles: true,
-              cancelable: true
-            }));
-          } catch (fallbackError) {
-            console.log('Lexical: 模拟粘贴失败:', fallbackError);
-          }
-        }
-        
-        console.log('Lexical 编辑器内容已设置（通过 DOM + 事件）');
-      }
-    } else {
-      // 处理普通 contenteditable 元素（支持 Tiptap/ProseMirror 等编辑器）
-      let success = false;
+      // 先删除现有内容
+      document.execCommand('delete', false, null);
+      // 插入新文本——框架拦截 beforeinput 并 preventDefault 时，
+      // execCommand 返回 false，但框架已在内部处理好编辑。
+      // 此时不会再执行任何回退操作，避免重复插入。
+      document.execCommand('insertText', false, query);
+      
+      console.log('contenteditable: 通过 execCommand 设置内容');
+    } catch (e) {
+      // execCommand 抛出异常（极少数浏览器不支持），回退到纯 DOM 操作
+      console.warn('contenteditable: execCommand 抛出异常，回退到 DOM 操作', e);
       try {
-        element.focus();
-        
-        // 选中所有内容以便替换
-        const range = document.createRange();
-        range.selectNodeContents(element);
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
-        
-        // 使用 insertText 命令，这样编辑器（如 Tiptap, Slate 等）可以监听到并同步内部状态
-        if (document.execCommand('insertText', false, query)) {
-          success = true;
-          console.log('contenteditable: 通过 execCommand 成功设置内容');
-        }
-      } catch (e) {
-        console.warn('contenteditable: execCommand 设置内容失败，将回退到 DOM 操作方式', e);
+        element.innerHTML = '';
+        const p = document.createElement('p');
+        p.textContent = query;
+        element.appendChild(p);
+        // 派发一个简单的 input 事件通知框架内容已变（不含 inputType/data，不会导致重复插入）
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        console.log('contenteditable: DOM 操作设置内容完成');
+      } catch (domErr) {
+        console.error('contenteditable: DOM 操作也失败:', domErr);
+        throw domErr;
       }
-
-      if (!success) {
-        // 查找所有 p 元素，清空并替换为新内容
-        const pElements = element.querySelectorAll('p');
-        
-        if (pElements.length > 0) {
-          // 如果存在 p 元素，清空所有并只保留第一个
-          if (pElements.length > 1) {
-            // 如果有多个 p 元素，删除多余的
-            for (let i = 1; i < pElements.length; i++) {
-              pElements[i].remove();
-            }
-          }
-          const pElement = pElements[0];
-          // 移除空状态类（如 is-empty, is-editor-empty）
-          pElement.classList.remove('is-empty', 'is-editor-empty');
-          // 设置文本内容
-          pElement.innerText = query;
-          // 如果没有内容，保留空 p 元素，但移除占位符类
-          if (!query.trim()) {
-            pElement.innerHTML = '';
-          }
-        } else {
-          // 如果没有 p 元素，创建一个新的
-          element.innerHTML = '<p></p>';
-          const newP = element.querySelector('p');
-          if (newP) {
-            newP.innerText = query;
-          }
-        }
-      }
-
-      // 额外触发输入和变更事件，确保框架能够捕获到变化
-      // 使用 InputEvent（包含 inputType + data）而非普通 Event，
-      // 因为许多框架（Slate、Tiptap 等）通过 beforeinput/input 事件的
-      // inputType/data 属性来判断状态变更，普通 Event 无法触发状态同步。
-      element.dispatchEvent(new InputEvent('beforeinput', {
-        bubbles: true,
-        cancelable: true,
-        inputType: 'insertText',
-        data: query
-      }));
-      element.dispatchEvent(new InputEvent('input', {
-        bubbles: true,
-        cancelable: true,
-        inputType: 'insertText',
-        data: query
-      }));
-      element.dispatchEvent(new CompositionEvent('compositionend', {
-        bubbles: true,
-        data: query
-      }));
-      element.dispatchEvent(new Event('change', { bubbles: true }));
     }
   } else if (step.inputType === 'special') {
     // 使用配置驱动的特殊处理
@@ -1500,18 +1318,27 @@ window.addEventListener('message', async function(event) {
     // 记录有效的 AIShortcuts 消息
     console.log('🎯🎯🎯 inject.js 收到 AIShortcuts 消息:', event.data, '来源:', event.origin);
 
-    // isAISite 检查（移到静态过滤与来源校验之后）
-    // 对于 SET_HISTORY_CONTEXT 这类元数据消息，即使 isAISite 未就绪也允许处理
-    // 注意：checkAISite() 内部会处理缓存逻辑：如果缓存结果为 false 会重新检查
-    // （防止 document_start 时 chrome.storage 数据未就绪导致缓存错误结果）
-    if (event.data.type !== 'SET_HISTORY_CONTEXT') {
-        let onAISite = await checkAISite();
-        if (!onAISite) {
-            return; // 不在 AI 站点中，跳过需要站点处理器的消息
-        }
-    }
+    // 来源校验已通过：消息来自扩展父页面。
+    // 跳过 isAISite() 域名匹配检查：部分 AI 站点（如 kimi.moonshot.cn → www.kimi.com）
+    // 会发生域名级重定向，导致 window.location.hostname 与配置中的 URL hostname 不匹配，
+    // isAISite() 会错误返回 false 并静默丢弃消息。
+    // 由于父页面在发送 search 消息前已通过 getIframeHandler 验证了 iframe 的站点匹配，
+    // 这里无需重复检查，直接信任扩展下发的消息即可。
+    // （SET_HISTORY_CONTEXT 等元数据消息一直跳过此检查，无需处理）
 
     console.log('收到消息类型:', event.data.type);
+
+    // 防抖：5 秒内丢弃重复的 'search' 消息，避免多个 handler 重复执行
+    // （createSingleIframe 的 load 事件和 iframeFresh 都可能发送 search 消息）
+    if (event.data.type === 'search') {
+      const now = Date.now();
+      if (event.data.query === window.__lastSearchQuery && now - window.__lastSearchTime < 5000) {
+        console.log('[inject] 忽略重复的 search 消息（5秒内相同 query）', event.data.query);
+        return;
+      }
+      window.__lastSearchQuery = event.data.query;
+      window.__lastSearchTime = now;
+    }
 
     // 接收父页面下发的历史上下文（用于把 URL 更新写回正确的 history 记录）
     if (event.data.type === 'SET_HISTORY_CONTEXT') {
