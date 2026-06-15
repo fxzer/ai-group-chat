@@ -1480,12 +1480,14 @@ function createSingleIframe(siteName, url, container, query, keepFullUrl = false
   header.innerHTML = `
     <span class="site-name">${siteName}</span>
     <div class="iframe-controls">
+      <button class="open-page-btn" title="在新标签页打开">
+        <img class="open-page-logo" src="${chrome.runtime.getURL('icons/ai/other.svg')}" alt="logo">
+      </button>
       <button class="fullscreen-btn" title="填充可视区">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M3 6V3h3M13 6V3h-3M3 10v3h3M13 10v3h-3"/>
         </svg>
       </button>
-      <button class="open-page-btn" title="在新标签页打开"></button>
       <button class="copy-link-btn" title="复制链接">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M6.5 9.5a3.5 3.5 0 0 0 5.05.45l2-2a3.5 3.5 0 0 0-4.95-4.95l-1.2 1.2"/>
@@ -1500,6 +1502,21 @@ function createSingleIframe(siteName, url, container, query, keepFullUrl = false
       <button class="close-btn"></button>
     </div>
   `;
+
+  // 异步获取并设置站点真实 logo
+  (async () => {
+    try {
+      const sites = await window.getDefaultSites();
+      const site = sites.find(s => s.name === siteName);
+      const iconPath = site && site.icon ? site.icon : 'ai/other.svg';
+      const logoImg = header.querySelector('.open-page-logo');
+      if (logoImg) {
+        logoImg.src = chrome.runtime.getURL('icons/' + iconPath);
+      }
+    } catch (e) {
+      console.error('加载站点 logo 失败:', e);
+    }
+  })();
   
   // 添加 Chrome 浏览器特征
   iframe.setAttribute('user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36');

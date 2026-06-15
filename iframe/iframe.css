@@ -286,9 +286,11 @@ html {
     justify-content: center;
 }
 
-.open-page-btn::before {
-    content: '↗';
-    font-size: 14px;
+.open-page-btn img {
+    width: 14px;
+    height: 14px;
+    display: block;
+    object-fit: contain;
 }
 
 .close-btn {
