@@ -346,6 +346,7 @@ const RemoteConfigManager = {
       });
     } catch (error) {
       console.error('更新本地配置失败:', error);
+      throw error;
     }
   },
   

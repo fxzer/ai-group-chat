@@ -90,6 +90,7 @@ async function initializePromptTemplates() {
     console.log('提示词模板管理初始化完成');
   } catch (error) {
     console.error('初始化提示词模板失败:', error);
+    showToast(getMessage('templateInitFailed') || '模板加载失败，请刷新页面重试');
   }
 }
 
@@ -112,6 +113,7 @@ async function ensureDefaultTemplates() {
     }
   } catch (error) {
     console.error('检查默认模板失败:', error);
+    throw error;
   }
 }
 
@@ -217,6 +219,7 @@ async function loadTemplatesList() {
     
   } catch (error) {
     console.error('加载模板列表失败:', error);
+    showToast(getMessage('templateLoadFailed') || '加载模板列表失败，请刷新页面');
   }
 }
 
@@ -410,6 +413,7 @@ async function editTemplate(templateId) {
     }
   } catch (error) {
     console.error('编辑模板失败:', error);
+    showToast(getMessage('templateEditFailed') || '加载模板失败，请重试');
   }
 }
 
@@ -575,6 +579,7 @@ async function updateTemplateOrder() {
     showToast('模板顺序已更新');
   } catch (error) {
     console.error('更新模板顺序失败:', error);
+    showToast(getMessage('templateOrderUpdateFailed') || '更新模板顺序失败，请重试');
   }
 }
 
@@ -611,6 +616,7 @@ async function initializeSummarySettings() {
     }
   } catch (error) {
     console.error('加载总结设置失败:', error);
+    showToast(getMessage('summarySettingsLoadFailed') || '加载总结设置失败，请刷新页面');
   }
 
   // 绑定保存事件

@@ -1578,6 +1578,7 @@ function createSingleIframe(siteName, url, container, query, keepFullUrl = false
         showToast('链接已复制: ' + siteName);
       } catch (err) {
         console.error('复制链接失败:', err);
+        showToast('复制链接失败，请手动复制');
       }
     }
   };
@@ -1627,6 +1628,7 @@ function createSingleIframe(siteName, url, container, query, keepFullUrl = false
       }
     } catch (err) {
       console.error('自动保存站点设置失败:', err);
+      showToast('保存站点设置失败，请稍后重试');
     }
   };
 
@@ -1947,6 +1949,7 @@ async function initializeSiteSettings() {
                     await chrome.storage.sync.set({ sites: updated });
                 } catch (err) {
                     console.error('自动保存站点设置失败:', err);
+                    showToast('保存设置失败，请重试');
                 }
             });
             
@@ -2147,6 +2150,7 @@ async function saveDisabledSiteOrderFromSettings() {
         console.log('未启用站点排序已保存:', items.map(i => i.getAttribute('data-site-name')));
     } catch (err) {
         console.error('保存未启用站点排序失败:', err);
+        showToast('保存排序失败，请重试');
     }
 }
 
@@ -2224,6 +2228,7 @@ async function saveSiteOrderFromSettings() {
         console.log('已启用站点排序已保存:', items.map(i => i.getAttribute('data-site-name')));
     } catch (err) {
         console.error('保存站点排序失败:', err);
+        showToast('保存排序失败，请重试');
     }
 }
 
@@ -2370,6 +2375,7 @@ async function showQuerySuggestions(query) {
 
   } catch (error) {
     console.error('加载提示词模板失败:', error);
+    showToast('加载提示词模板失败');
   }
 }
 
@@ -2853,6 +2859,7 @@ async function savePKHistory(query) {
     return historyId;
   } catch (error) {
     console.error('保存 PK 历史记录失败:', error);
+    showToast('保存历史记录失败');
     return null;
   }
 }
@@ -3703,6 +3710,7 @@ async function updateSitesOrder(enabledSites, fromIndex, toIndex) {
     console.log('iframe侧边栏站点顺序已保存到 sync 存储');
   } catch (error) {
     console.error('保存站点顺序失败:', error);
+    showToast('保存站点顺序失败，请重试');
   }
 }
 

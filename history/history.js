@@ -106,6 +106,12 @@ async function loadHistory() {
 
     } catch (error) {
         console.error('Failed to load history:', error);
+        const historyList = document.getElementById('historyList');
+        if (historyList) {
+            historyList.innerHTML = '<div style="padding: 20px; color: #666; text-align: center;">' +
+                (getMessage('loadHistoryFailed') || 'Failed to load history, please refresh the page') + '</div>';
+            historyList.style.display = 'flex';
+        }
     }
 }
 
@@ -248,6 +254,7 @@ async function deleteHistoryItem(id) {
         allHistoryItems = updatedHistory;
     } catch (error) {
         console.error('Failed to delete history item:', error);
+        alert(getMessage('deleteHistoryFailed') || 'Failed to delete history item, please try again');
     }
 }
 
@@ -256,6 +263,7 @@ async function clearHistory() {
         await chrome.storage.local.set({ pkHistory: [] });
     } catch (error) {
         console.error('Failed to clear history:', error);
+        alert(getMessage('clearHistoryFailed') || 'Failed to clear history, please try again');
     }
 }
 
