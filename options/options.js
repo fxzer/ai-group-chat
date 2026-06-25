@@ -1,54 +1,7 @@
 // 系统默认站点设置将通过 getDefaultSites() 动态获取
 
-// 获取翻译文本
-function getMessage(key, substitutions = null) {
-  return chrome.i18n.getMessage(key, substitutions);
-}
-
-// 显示吐司提示
-function showToast(message, duration = 2000) {
-  const toast = document.getElementById('toast');
-  if (!toast) return;
-
-  toast.classList.remove('show');
-  void toast.offsetWidth;
-  
-  toast.textContent = message;
-  toast.classList.add('show');
-  
-  if (toast.timeoutId) {
-    clearTimeout(toast.timeoutId);
-  }
-  
-  toast.timeoutId = setTimeout(() => {
-    toast.classList.remove('show');
-  }, duration);
-}
-
-// 初始化页面文本
-function initializeI18n() {
-  // 更新页面标题
-  document.title = chrome.i18n.getMessage("appName");
-
-  
-  // 更新所有带有 data-i18n 属性的元素
-  document.querySelectorAll('[data-i18n]').forEach(element => {
-    const key = element.getAttribute('data-i18n');
-    const message = chrome.i18n.getMessage(key);
-    if (message) {
-      element.textContent = message;
-    }
-  });
-
-  // 更新所有带有 data-i18n-placeholder 属性的元素的 placeholder
-  document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
-    const key = element.getAttribute('data-i18n-placeholder');
-    const message = chrome.i18n.getMessage(key);
-    if (message) {
-      element.placeholder = message;
-    }
-  });
-}
+// getMessage, showToast, initializeI18n are provided by lib/shared-utils.js
+// Options page uses: initializeI18n({ updateTitle: true })
 
 // 显示消息
 function showMessage(message, isError = false) {
@@ -811,7 +764,7 @@ function initializeTabs() {
 document.addEventListener('DOMContentLoaded', () => {
   console.log('Options page loaded');
   
-  initializeI18n();
+  initializeI18n({ updateTitle: true });
   initializePromptTemplates();
   initializeSummarySettings();
   initializeTabs();
