@@ -67,6 +67,7 @@ async function initializeLocalConfig(force = false) {
     
   } catch (error) {
     console.error('本地配置初始化失败:', error);
+    throw error;
   }
 }
 
@@ -539,6 +540,7 @@ async function getHandlerForUrl(url) {
       }
   } catch (error) {
     console.error('单站点搜索失败:', error);
+    throw error;
   }
 }
 
@@ -696,12 +698,10 @@ self.addEventListener('error', (error) => {
 self.addEventListener('unhandledrejection', (event) => {
     // 忽略 "No SW" 错误，这是 Chrome 扩展的正常行为
     if (event.reason && event.reason.message && event.reason.message.includes('No SW')) {
-        // 静默处理，不输出错误
         event.preventDefault();
         return;
     }
     console.error('未处理的 Promise rejection:', event.reason);
-    event.preventDefault(); // 防止错误显示在控制台
 });
 
 
