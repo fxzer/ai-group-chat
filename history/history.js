@@ -1,31 +1,7 @@
 let allHistoryItems = [];
 
-function getMessage(key, substitutions) {
-    return chrome.i18n.getMessage(key, substitutions);
-}
-
-function initializeI18n() {
-    const title = getMessage('historyTitle') || getMessage('appName');
-    if (title) {
-        document.title = title;
-    }
-
-    document.querySelectorAll('[data-i18n]').forEach(element => {
-        const key = element.getAttribute('data-i18n');
-        const message = getMessage(key);
-        if (message) {
-            element.textContent = message;
-        }
-    });
-
-    document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
-        const key = element.getAttribute('data-i18n-placeholder');
-        const message = getMessage(key);
-        if (message) {
-            element.placeholder = message;
-        }
-    });
-}
+// getMessage, initializeI18n are provided by lib/shared-utils.js
+// History page uses: initializeI18n({ updateTitle: true, titleKey: 'historyTitle' })
 
 async function initializeHistoryTip() {
     const tipEl = document.getElementById('historyMaxTip');
@@ -46,7 +22,7 @@ async function initializeHistoryTip() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-    initializeI18n();
+    initializeI18n({ updateTitle: true, titleKey: 'historyTitle' });
     await initializeHistoryTip();
     await loadHistory();
 

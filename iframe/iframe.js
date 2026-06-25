@@ -24,12 +24,8 @@ let filePasteHandlerAdded = false;
 // 跟踪输入法组合输入状态（用于中文输入法）
 let isComposing = false;
 
-function trackEvent(name, params = {}) {
-  const analytics = window.AIShortcutsAnalytics;
-  if (analytics && typeof analytics.logEvent === 'function') {
-    analytics.logEvent(name, params);
-  }
-}
+// trackEvent, showToast, getMessage, initializeI18n, showQuerySuggestions
+// are provided by lib/shared-utils.js loaded before this module.
 
 function getOpenedSites() {
   return Array.from(document.querySelectorAll('.ai-iframe'))
@@ -436,7 +432,7 @@ function initFloatingUI() {
             clearBtn.style.display = 'none';
         }
         // 打开抽屉时默认展示前5个提示词模板
-        showQuerySuggestions('');
+        showQuerySuggestions('', { hideOnEmpty: false });
     }
 
     // 关闭所有面板
@@ -2228,62 +2224,12 @@ async function saveSiteOrderFromSettings() {
 }
 
 // Toast 提示函数
-function showToast(message, duration = 2000) {
-    // 移除已存在的 Toast，避免堆叠
-    const existingToast = document.querySelector('.toast');
-    if (existingToast) {
-        existingToast.remove();
-    }
-    
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    
-    // 添加显示类名触发动画
-    setTimeout(() => toast.classList.add('show'), 10);
-    
-    // 定时移除
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
-    }, duration);
-}
+// showToast is provided by lib/shared-utils.js
 
 
 
-// 初始化国际化
-function initializeI18n() {
-    // 处理所有带有 data-i18n 属性的元素
-    document.querySelectorAll('[data-i18n]').forEach(element => {
-        const key = element.getAttribute('data-i18n');
-        const message = chrome.i18n.getMessage(key);
-        if (message) {
-            if ((element.tagName.toLowerCase() === 'input' && 
-                element.type === 'text') || 
-                element.tagName.toLowerCase() === 'textarea') {
-                // 对于输入框和文本域，设置 placeholder
-                element.placeholder = message;
-            } else if (element.tagName.toLowerCase() === 'button' || 
-                       element.tagName.toLowerCase() === 'img') {
-                // 对于按钮和图片，设置 title 属性
-                element.title = message;
-            } else {
-                // 对于其他元素，设置文本内容
-                element.textContent = message;
-            }
-        }
-    });
-    
-    // 手动设置输入框的占位符
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        const placeholderMessage = chrome.i18n.getMessage('inputPlaceholder');
-        if (placeholderMessage) {
-            searchInput.placeholder = placeholderMessage;
-        }
-    }
-}
+// initializeI18n is provided by lib/shared-utils.js
+// Called as: initializeI18n({ smartElements: true, searchInputId: 'searchInput' })
 
 
 
@@ -2314,64 +2260,8 @@ async function renderDrawerSiteIcons() {
 }
 
 // 显示查询建议 — 默认展示前5个模板，输入时过滤
-async function showQuerySuggestions(query) {
-  const querySuggestions = document.getElementById('querySuggestions');
-
-  try {
-    const { promptTemplates = [] } = await chrome.storage.sync.get('promptTemplates');
-
-    // 按 order 排序并过滤出有效的模板
-    const sortedTemplates = promptTemplates
-      .filter(t => t.name && t.query)
-      .sort((a, b) => (a.order || 0) - (b.order || 0));
-
-    // 根据输入过滤
-    const trimmed = (query || '').trim().toLowerCase();
-    const matched = trimmed
-      ? sortedTemplates.filter(t =>
-          t.name.toLowerCase().includes(trimmed) ||
-          t.query.toLowerCase().includes(trimmed))
-      : sortedTemplates;
-
-    // 取前5个
-    const top = matched.slice(0, 5);
-
-    querySuggestions.innerHTML = '';
-
-    top.forEach(t => {
-      const chip = document.createElement('span');
-      chip.className = 'query-suggestion-item';
-      chip.textContent = t.name;
-      chip.addEventListener('click', () => {
-        const input = document.getElementById('searchInput');
-        input.value = t.query.replace('{query}', input.value.trim());
-      });
-      querySuggestions.appendChild(chip);
-    });
-
-    // 更多操作按钮（编辑提示词模板）
-    const moreBtn = document.createElement('button');
-    moreBtn.type = 'button';
-    moreBtn.className = 'query-suggestion-item query-suggestion-more-btn';
-    moreBtn.title = chrome.i18n.getMessage('editTemplateTitle') || '编辑提示词模板';
-    moreBtn.setAttribute('aria-label', moreBtn.title);
-    moreBtn.innerHTML = `
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <circle cx="5" cy="12" r="2"/>
-        <circle cx="12" cy="12" r="2"/>
-        <circle cx="19" cy="12" r="2"/>
-      </svg>
-    `;
-    moreBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      window.open(chrome.runtime.getURL('options/options.html#prompt-templates'), '_blank');
-    });
-    querySuggestions.appendChild(moreBtn);
-
-  } catch (error) {
-    console.error('加载提示词模板失败:', error);
-  }
-}
+// showQuerySuggestions is provided by lib/shared-utils.js
+// iframe calls: showQuerySuggestions('', { hideOnEmpty: false }) to show all templates
 
 
 
@@ -2986,7 +2876,7 @@ async function updateHistorySiteUrl(siteName, url, historyId) {
 
 // 在页面加载时调用
 document.addEventListener('DOMContentLoaded', async () => {
-  initializeI18n();
+  initializeI18n({ smartElements: true, searchInputId: 'searchInput' });
   checkForSiteConfigUpdates();
   
   // 检查剪贴板权限状态

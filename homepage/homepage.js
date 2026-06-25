@@ -1,12 +1,7 @@
 // 跟踪输入法组合输入状态（用于中文输入法）
 let isComposing = false;
 
-function trackEvent(name, params = {}) {
-    const analytics = window.AIShortcutsAnalytics;
-    if (analytics && typeof analytics.logEvent === 'function') {
-        analytics.logEvent(name, params);
-    }
-}
+// trackEvent is provided by lib/shared-utils.js
 
 // 页面加载完成后的初始化
 document.addEventListener('DOMContentLoaded', async function() {
@@ -95,7 +90,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     // 初始化国际化
-    initializeI18n();
+    initializeI18n({ searchInputId: 'searchInput' });
     
     // 检查是否需要显示 pin 引导提示（仅首次安装时）
     await checkAndShowPinGuide();
@@ -113,34 +108,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     initializeActionLinks();
 });
 
-// 初始化国际化
-function initializeI18n() {
-    // 处理所有带有 data-i18n 属性的元素
-    document.querySelectorAll('[data-i18n]').forEach(element => {
-        const key = element.getAttribute('data-i18n');
-        const message = chrome.i18n.getMessage(key);
-        if (message) {
-            if ((element.tagName.toLowerCase() === 'input' && 
-                element.type === 'text') || 
-                element.tagName.toLowerCase() === 'textarea') {
-                // 对于输入框和文本域，设置 placeholder
-                element.placeholder = message;
-            } else {
-                // 对于其他元素，设置文本内容
-                element.textContent = message;
-            }
-        }
-    });
-    
-    // 手动设置输入框的占位符
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        const placeholderMessage = chrome.i18n.getMessage('inputPlaceholder');
-        if (placeholderMessage) {
-            searchInput.placeholder = placeholderMessage;
-        }
-    }
-}
+// initializeI18n is provided by lib/shared-utils.js
+// Homepage uses: initializeI18n({ searchInputId: 'searchInput' })
 
 // 初始化查询建议
 async function initializeQuerySuggestions() {
@@ -637,33 +606,5 @@ async function initializeActionLinks() {
 }
 
 // Toast 提示函数
-function showToast(message, duration = 2000) {
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 12px 24px;
-        border-radius: 8px;
-        z-index: 10000;
-        font-size: 14px;
-        animation: slideInUp 0.3s ease-out;
-    `;
-    
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.style.animation = 'slideInUp 0.3s ease-out reverse';
-        setTimeout(() => {
-            if (toast.parentElement) {
-                toast.remove();
-            }
-        }, 300);
-    }, duration);
-}
+// showToast is provided by lib/shared-utils.js
 

@@ -1,6 +1,6 @@
 // ==================== 导出回答功能实现 ====================
 
-// 安全的国际化函数
+// getI18nMessage wraps getMessage (from lib/shared-utils.js) with a safe fallback
 function getI18nMessage(key, fallback) {
   try {
     if (typeof chrome !== 'undefined' && chrome.i18n && chrome.i18n.getMessage) {
@@ -13,11 +13,10 @@ function getI18nMessage(key, fallback) {
   return fallback;
 }
 
- 
-// Toast 提示函数
-function showToast(message, duration = 2000) {
+// Export-specific toast positioned at top of viewport (distinct from shared showToast)
+function showExportToast(message, duration = 2000) {
   const toast = document.createElement('div');
-  toast.className = 'toast';
+  toast.className = 'toast export-toast';
   toast.textContent = message;
   toast.style.cssText = `
     position: fixed;
@@ -60,11 +59,11 @@ function showToast(message, duration = 2000) {
 function showExportModal() {
   console.log('🎯 开始显示导出模态框');
   
-  // 测试 showToast 函数是否可用
+  // 测试 showExportToast 函数是否可用
   try {
-    showToast('导出功能正在加载...', 1000);
+    showExportToast('导出功能正在加载...', 1000);
   } catch (error) {
-    console.error('showToast 函数测试失败:', error);
+    console.error('showExportToast 函数测试失败:', error);
   }
   
   // 创建模态框
@@ -199,7 +198,7 @@ function initializeExportModal(modal) {
     console.log('导出按钮被点击，当前选中的站点:', Array.from(modal.selectedSites || new Set()));
     
     if (!modal.selectedSites || modal.selectedSites.size === 0) {
-      showToast(getI18nMessage('selectSitesToExport', '请选择要导出的站点'));
+      showExportToast(getI18nMessage('selectSitesToExport', '请选择要导出的站点'));
       return;
     }
     
@@ -231,12 +230,12 @@ function initializeExportModal(modal) {
       
       downloadFile(exportContent, filename, mimeType);
       
-      showToast(getI18nMessage('exportSuccess', '导出成功！'));
+      showExportToast(getI18nMessage('exportSuccess', '导出成功！'));
       closeModal();
       
     } catch (error) {
       console.error('导出失败:', error);
-      showToast(getI18nMessage('exportFailed', '导出失败') + ': ' + error.message);
+      showExportToast(getI18nMessage('exportFailed', '导出失败') + ': ' + error.message);
     } finally {
       confirmBtn.disabled = false;
       confirmBtn.innerHTML = getI18nMessage('export', '导出');
