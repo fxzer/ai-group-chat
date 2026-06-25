@@ -663,6 +663,16 @@ async function initializeSummarySettings() {
           cleanUrl = cleanUrl.replace(/\/$/, '') + '/chat/completions';
         }
 
+        try {
+          const parsedUrl = new URL(cleanUrl);
+          if (parsedUrl.protocol !== 'https:') {
+            throw new Error('API URL 必须使用 HTTPS 协议');
+          }
+        } catch (urlError) {
+          if (urlError.message.includes('HTTPS')) throw urlError;
+          throw new Error('API URL 格式不合法');
+        }
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 秒超时
 

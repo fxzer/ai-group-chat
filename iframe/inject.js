@@ -2384,21 +2384,21 @@ function convertHtmlToMarkdown(html) {
         
         document.addEventListener('mouseenter', () => {
             if (window.parent && window.parent !== window) {
-                window.parent.postMessage({
+                postToParent({
                     type: 'IFRAME_HOVER_STATE',
                     site: siteName,
                     hovered: true
-                }, '*');
+                });
             }
         });
         
         document.addEventListener('mouseleave', () => {
             if (window.parent && window.parent !== window) {
-                window.parent.postMessage({
+                postToParent({
                     type: 'IFRAME_HOVER_STATE',
                     site: siteName,
                     hovered: false
-                }, '*');
+                });
             }
         });
     } catch (err) {
