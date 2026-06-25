@@ -1478,7 +1478,7 @@ function createSingleIframe(siteName, url, container, query, keepFullUrl = false
   const header = document.createElement('div');
   header.className = 'iframe-header';
   header.innerHTML = `
-    <span class="site-name">${siteName}</span>
+    <span class="site-name"></span>
     <div class="iframe-controls">
       <button class="open-page-btn" title="在新标签页打开">
         <img class="open-page-logo" src="${chrome.runtime.getURL('icons/ai/other.svg')}" alt="logo">
@@ -1502,6 +1502,7 @@ function createSingleIframe(siteName, url, container, query, keepFullUrl = false
       <button class="close-btn"></button>
     </div>
   `;
+  header.querySelector('.site-name').textContent = siteName;
 
   // 异步获取并设置站点真实 logo
   (async () => {
@@ -3874,13 +3875,21 @@ function showFileUploadError(message) {
     animation: slideInScale 0.3s ease-out;
   `;
   
-  error.innerHTML = `
-    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-      <span style="font-size: 18px;">❌</span>
-      <span style="font-weight: 600;">文件上传失败</span>
-    </div>
-    <div style="font-size: 13px; opacity: 0.9;">${message}</div>
-  `;
+  const titleRow = document.createElement('div');
+  titleRow.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 8px;';
+  const iconSpan = document.createElement('span');
+  iconSpan.style.fontSize = '18px';
+  iconSpan.textContent = '\u274C';
+  const titleSpan = document.createElement('span');
+  titleSpan.style.fontWeight = '600';
+  titleSpan.textContent = '\u6587\u4EF6\u4E0A\u4F20\u5931\u8D25';
+  titleRow.appendChild(iconSpan);
+  titleRow.appendChild(titleSpan);
+  const msgDiv = document.createElement('div');
+  msgDiv.style.cssText = 'font-size: 13px; opacity: 0.9;';
+  msgDiv.textContent = message;
+  error.appendChild(titleRow);
+  error.appendChild(msgDiv);
   
   document.body.appendChild(error);
   

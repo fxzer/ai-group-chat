@@ -406,10 +406,20 @@ ${responsesContent}
 
 请总结它们的回答，找出共识与分歧，并以清晰、精美的 Markdown 格式输出总结报告。`;
 
-    // 4. 请求 API
+    // 4. 请求 API（校验 URL 合法性，仅允许 HTTPS）
     let cleanUrl = apiUrl.trim();
     if (!cleanUrl.endsWith('/chat/completions')) {
       cleanUrl = cleanUrl.replace(/\/$/, '') + '/chat/completions';
+    }
+
+    try {
+      const parsedUrl = new URL(cleanUrl);
+      if (parsedUrl.protocol !== 'https:') {
+        throw new Error('API URL 必须使用 HTTPS 协议');
+      }
+    } catch (urlError) {
+      if (urlError.message.includes('HTTPS')) throw urlError;
+      throw new Error('API URL 格式不合法: ' + cleanUrl);
     }
 
     const response = await fetch(cleanUrl, {
